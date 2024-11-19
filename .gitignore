@@ -1,1 +1,4 @@
 *.pdf
+training_2.jl
+training.jl
+evaluating.jl
