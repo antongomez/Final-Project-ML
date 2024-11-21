@@ -224,7 +224,7 @@ function normalizeZeroMean!(dataset::AbstractArray{<:Real,2})
 
 end
 
-function normalizeZeroMean( dataset::AbstractArray{<:Real,2},      
+function normalizeZeroMean(dataset::AbstractArray{<:Real,2},      
                         normalizationParameters::NTuple{2, AbstractArray{<:Real,2}})
     """
     This function returns the normalized the dataset using the zero mean normalization, calculating the mean and standard deviation of each attribute inside. It also eliminates any atribute that does not add information.
@@ -241,7 +241,7 @@ function normalizeZeroMean( dataset::AbstractArray{<:Real,2},
 
 end
 
-function normalizeZeroMean( dataset::AbstractArray{<:Real,2}) 
+function normalizeZeroMean(dataset::AbstractArray{<:Real,2}) 
     """
     This function returns the normalized the dataset using the zero mean normalization, calculating the mean and standard deviation of each attribute inside.
     
@@ -254,6 +254,53 @@ function normalizeZeroMean( dataset::AbstractArray{<:Real,2})
 
     normalizeZeroMean!(copy(dataset), calculateZeroMeanNormalizationParameters(dataset));
 
+end
+
+function calculateNormalizationParameters(dataset::AbstractArray{<:Real,2},
+normalizationType::Symbol)
+
+    """
+    This function calculates the normalization parameters according to the normalization type provided.
+    
+    Parameters:
+        - dataset: A matrix with the dataset.
+        - normalizationType: The type of normalization to be performed. It can be :minmax or :zeromean.
+    
+    Returns:
+        - normalizationParameters: A tuple with the normalization parameters.
+    """
+
+    if normalizationType == :minmax
+        return calculateMinMaxNormalizationParameters(dataset);
+    elseif normalizationType == :zeromean
+        return calculateZeroMeanNormalizationParameters(dataset);
+    else
+        error("Invalid normalization type. Please use :minmax or :zeromean.");
+    end
+
+end
+
+function performNormalization!(dataset::AbstractArray{<:Real,2}, 
+    normalizationParameters::NTuple{2, AbstractArray{<:Real,2}},
+    normalizationType::Symbol)
+    """
+    This function normalizes the dataset according to the normalization type provided.
+    
+    Parameters:
+        - (!)dataset: A matrix with the dataset. This matrix will be modified with the normalized values.
+        - normalizationType: The type of normalization to be performed. It can be :minmax or :zeromean.
+    
+    Returns:
+        - dataset: A matrix with the normalized dataset.
+    """
+
+    if normalizationType == :minmax
+        return normalizeMinMax!(dataset, normalizationParameters);
+    elseif normalizationType == :zeromean
+        return normalizeZeroMean!(dataset, normalizationParameters);
+    else
+        error("Invalid normalization type. Please use :minmax or :zeromean.");
+    end
 end
 
 """ 3. SPLITTING """
