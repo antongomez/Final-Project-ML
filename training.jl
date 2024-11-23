@@ -12,6 +12,7 @@
 using Flux;
 using Flux.Losses;
 using ScikitLearn;
+
 include("metrics.jl");
 include("preprocessing.jl");
 
@@ -25,6 +26,9 @@ include("preprocessing.jl");
 
 # Ensemble models
 @sk_import ensemble:(AdaBoostClassifier, GradientBoostingClassifier, BaggingClassifier, StackingClassifier, VotingClassifier, RandomForestClassifier)
+
+# PCA for dimensionality reduction
+@sk_import decomposition:PCA
 
 
 """ 1. ANN """
@@ -438,6 +442,12 @@ function trainClassANN(topology::AbstractArray{<:Int,1},
             performNormalization!(validationDatasetFold[1], normalizationParameters, normalizationType);
             performNormalization!(testDatasetFold[1], normalizationParameters, normalizationType);
 
+            # Reduce dimension with pca
+            pca = PCA(n_components=0.95)
+            fit!(pca, trainingDatasetFold[1])
+            pca.transform(trainingDatasetFold[1])
+            pca.transform(validationDatasetFold[1])
+
             for j in 1:repetitionsTraining
                 (model, trainingLosses, validationLosses, testLosses, best_epoch) = trainClassANN(topology, trainingDatasetFold, validationDataset=validationDatasetFold, testDataset=testDatasetFold, transferFunctions=transferFunctions, maxEpochs=maxEpochs, minLoss=minLoss, learningRate=learningRate, maxEpochsVal=maxEpochsVal, showText=showTextEpoch)
                 outputs = model(testDatasetFold[1]')'
@@ -459,6 +469,12 @@ function trainClassANN(topology::AbstractArray{<:Int,1},
             normalizationParameters = calculateNormalizationParameters(trainingDatasetFold[1], normalizationType);
             performNormalization!(trainingDatasetFold[1], normalizationParameters, normalizationType);
             performNormalization!(testDatasetFold[1], normalizationParameters, normalizationType);
+
+            # Reduce dimension with pca
+            pca = PCA(n_components=0.95)
+            fit!(pca, trainingDatasetFold[1])
+            pca.transform(trainingDatasetFold[1])
+            pca.transform(testDatasetFold[1])
             
             for j in 1:repetitionsTraining
                 (model, trainingLosses, validationLosses, testLosses, best_epoch) = trainClassANN(topology, trainingDatasetFold, testDataset=testDatasetFold, transferFunctions=transferFunctions, maxEpochs=maxEpochs, minLoss=minLoss, learningRate=learningRate, maxEpochsVal=maxEpochsVal, showText=showTextEpoch)
@@ -642,11 +658,25 @@ function modelCrossValidation(modelType::Symbol,
                 performNormalization!(trainingDatasetFold[1], normalizationParameters, normalizationType)
                 performNormalization!(validationDatasetFold[1], normalizationParameters, normalizationType)
                 performNormalization!(testDatasetFold[1], normalizationParameters, normalizationType)
+
+                # Reduce dimension with pca
+                pca = PCA(n_components=0.95)
+                fit!(pca, trainingDatasetFold[1])
+                pca.transform(trainingDatasetFold[1])
+                pca.transform(validationDatasetFold[1])
+                pca.transform(testDatasetFold[1])
+
             else
                 # Normalize the data
                 normalizationParameters = calculateNormalizationParameters(trainingDatasetFold[1], normalizationType)
                 performNormalization!(trainingDatasetFold[1], normalizationParameters, normalizationType)
                 performNormalization!(testDatasetFold[1], normalizationParameters, normalizationType)
+
+                # Reduce dimension with pca
+                pca = PCA(n_components=0.95)
+                fit!(pca, trainingDatasetFold[1])
+                pca.transform(trainingDatasetFold[1])
+                pca.transform(testDatasetFold[1])
             end
 
             for j in 1:repetitionsTraining
@@ -679,6 +709,12 @@ function modelCrossValidation(modelType::Symbol,
             normalizationParameters = calculateNormalizationParameters(trainingDatasetFold[1], normalizationType)
             performNormalization!(trainingDatasetFold[1], normalizationParameters, normalizationType)
             performNormalization!(testDatasetFold[1], normalizationParameters, normalizationType)
+
+            # Reduce dimension with pca
+            pca = PCA(n_components=0.95)
+            fit!(pca, trainingDatasetFold[1])
+            pca.transform(trainingDatasetFold[1])
+            pca.transform(testDatasetFold[1])
   
             # Create the SVM model with the specified hyperparameters
             if modelType == :SVM
@@ -897,6 +933,13 @@ function trainClassEnsemble(estimators::AbstractArray{Symbol,1},
         normalizationParameters = calculateNormalizationParameters(trainingDatasetFold[1], normalizationType)
         performNormalization!(trainingDatasetFold[1], normalizationParameters, normalizationType)
         performNormalization!(testDatasetFold[1], normalizationParameters, normalizationType)
+
+        # Reduce dimension with pca
+        pca = PCA(n_components=0.95)
+        fit!(pca, trainingDatasetFold[1])
+        pca.transform(trainingDatasetFold[1])
+        pca.transform(testDatasetFold[1])
+        
         # Creat the ensemble model, train and evaluate it
         ensemble = get_ensemble_model(ensembleType, ensembleHyperParameters, estimators, modelsHyperParameters)
         fit!(ensemble, trainingDatasetFold[1], vec(trainingDatasetFold[2]))

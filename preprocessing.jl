@@ -378,9 +378,9 @@ function split_data(input_data, output_data, train_ratio = 0.8)
     
     # Split the data into training and testing sets
     train_input = input_data[train_idx, :]
-    train_output = output_data[train_idx]
+    train_output = output_data[train_idx, :]
     test_input = input_data[test_idx, :]
-    test_output = output_data[test_idx]
+    test_output = output_data[test_idx, :]
     
     return train_input, train_output, test_input, test_output
 
