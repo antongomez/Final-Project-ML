@@ -574,15 +574,16 @@ function trainClassANN(topology::AbstractArray{<:Int,1},
     normalizationType = normalizationType)
 end
 
-function modelCrossValidation(modelType::Symbol,
+function modelCrossValidation(
+    modelType::Symbol,
     modelHyperparameters::Dict,
-    inputs::AbstractArray{<:Real,2},
-    targets::AbstractArray{<:Any,1},
-    crossValidationIndices::Array{Int64,1},
-    metricsToSave::AbstractArray{<:String,1}=["accuracy"], 
-    showText=false, 
-    showTextEpoch=false,
-    normalizationType::Symbol=:zeroMean)
+    inputs::AbstractArray{<:Real, 2},
+    targets::AbstractArray{<:Any, 1},
+    crossValidationIndices::Array{Int64, 1},
+    metricsToSave::AbstractArray{<:String, 1} = ["accuracy"];
+    showText::Bool = false,
+    showTextEpoch::Bool = false,
+    normalizationType::Symbol = :zeroMean)
     """
     This function performs cross-validation for a given model with the specified hyperparameters, inputs, and targets.
     
@@ -607,6 +608,7 @@ function modelCrossValidation(modelType::Symbol,
   
     # Create a dictionary to store each metric's evaluations
     results_fold = Dict{String,AbstractArray{Float64,1}}()
+
     # Initialize each selected metric in the dictionary
     for metric in metricsToSave
         results_fold[metric] = zeros(Float64, n_folds)
@@ -624,9 +626,13 @@ function modelCrossValidation(modelType::Symbol,
         end
   
         if modelType == :ANN
+            # Separate training and validation data for this fold
+            trainIdx = findall(crossValidationIndices .!= i)
+            testIdx = findall(crossValidationIndices .== i)
+
             # Get the training and test datasets
-            trainingDatasetFold = (inputs[crossValidationIndices.!=i, :], targets[crossValidationIndices.!=i, :])
-            testDatasetFold = (inputs[crossValidationIndices.==i, :], targets[crossValidationIndices.==i, :])
+            trainingDatasetFold = (inputs[trainIdx, :], targets[trainIdx])
+            testDatasetFold = (inputs[testIdx, :], reshape(targets[testIdx], :, 1))
             
             # Here we will store the results for each metric on each repetition
             results_iterations = Dict{String,AbstractArray{Float64,1}}()
@@ -634,7 +640,7 @@ function modelCrossValidation(modelType::Symbol,
             # Check mandatory hyperparameters
             topology = modelHyperparameters["topology"]
   
-            # Check the optional hyperparameters. 
+            # Check the optional hyperparameters
             repetitionsTraining = get(modelHyperparameters, "repetitionsTraining", 1)
             validationRatio = get(modelHyperparameters, "validationRatio", 0)
             maxEpochs = get(modelHyperparameters, "maxEpochs", nothing)
