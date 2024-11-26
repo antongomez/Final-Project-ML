@@ -14,7 +14,7 @@ using Plots;
 
 """ 1. SINGLE CLASSIFIER EVALUATION """
 
-function classifyOutputs!(outputs::AbstractArray{<:Real,2}; 
+function classifyOutputs(outputs::AbstractArray{<:Real,2}; 
     threshold::Real=0.5) 
     """
     This function transforms the real-valued outputs of a classifier into boolean values, based on a threshold in the case of binary classification, or by selecting the maximum value in each row in the case of multi-class classification.
@@ -44,6 +44,9 @@ function classifyOutputs!(outputs::AbstractArray{<:Real,2};
     end;
 
 end
+
+classifyOutputs!(outputs::AbstractArray{<:Real,1}; threshold::Real=0.5) = classifyOutputs(outputs, threshold=threshold);
+
 
 function accuracy(outputs::AbstractArray{Bool,1}, targets::AbstractArray{Bool,1}) 
     """
@@ -193,7 +196,7 @@ function computeMetrics(tp::Int, tn::Int, fp::Int, fn::Int)
         end
     end
 
-    return Dict(
+    return Dict{Symbol, Any}(
         :accuracy => accuracy,
         :error_rate => error_rate,
         :recall => recall,

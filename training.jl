@@ -580,7 +580,7 @@ function modelCrossValidation(
     inputs::AbstractArray{<:Real, 2},
     targets::AbstractArray{<:Any, 1},
     crossValidationIndices::Array{Int64, 1},
-    metricsToSave::AbstractArray{<:String, 1} = ["accuracy"];
+    metricsToSave::AbstractArray{<:Union{String, Symbol}, 1} = [:accuracy];
     showText::Bool = false,
     showTextEpoch::Bool = false,
     normalizationType::Symbol = :zeroMean)
@@ -607,7 +607,7 @@ function modelCrossValidation(
     n_folds = maximum(crossValidationIndices)
   
     # Create a dictionary to store each metric's evaluations
-    results_fold = Dict{String,AbstractArray{Float64,1}}()
+    results_fold = Dict{Symbol, AbstractArray{Float64,1}}()
 
     # Initialize each selected metric in the dictionary
     for metric in metricsToSave
@@ -635,7 +635,7 @@ function modelCrossValidation(
             testDatasetFold = (inputs[testIdx, :], reshape(targets[testIdx], :, 1))
             
             # Here we will store the results for each metric on each repetition
-            results_iterations = Dict{String,AbstractArray{Float64,1}}()
+            results_iterations = Dict{Symbol, AbstractArray{Float64,1}}()
   
             # Check mandatory hyperparameters
             topology = modelHyperparameters["topology"]
@@ -692,7 +692,7 @@ function modelCrossValidation(
                     (model, trainingLosses, validationLosses, testLosses, best_epoch) = trainClassANN(topology, trainingDatasetFold, testDataset=testDatasetFold, transferFunctions=transferFunctions, maxEpochs=maxEpochs, minLoss=minLoss, learningRate=learningRate, maxEpochsVal=maxEpochsVal, showText=showTextEpoch)
                 end
                 outputs = model(testDatasetFold[1]')'
-                matrix, metrics = confusionMatrix(outputs, testDatasetFold[2])
+                metrics = confusionMatrix(outputs, testDatasetFold[2])
   
                 for metric in metricsToSave
                     results_iterations[metric][j] = metrics[metric]
@@ -758,8 +758,8 @@ function modelCrossValidation(
     end
   
     # Return the mean of each metric for each fold
-    mean_results = Dict{String,Float64}()
-    std_results = Dict{String,Float64}()
+    mean_results = Dict{Symbol, Float64}()
+    std_results = Dict{Symbol, Float64}()
     for metric in metricsToSave
         mean_results[metric] = mean(results_fold[metric])
         std_results[metric] = std(results_fold[metric])
