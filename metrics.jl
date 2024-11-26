@@ -379,7 +379,6 @@ function oneVSall(inputs::AbstractArray{<:Real,2}, targets::AbstractArray{Bool,2
 
 end
 
-
 function confusionMatrix(outputs::AbstractArray{Bool,2}, targets::AbstractArray{Bool,2}; weighted::Bool=true)
     """
     This function calculates the confusion matrix and several metrics of a multi-class classifier given its boolean outputs and the target values.
@@ -399,6 +398,7 @@ function confusionMatrix(outputs::AbstractArray{Bool,2}, targets::AbstractArray{
             - negative_predictive_value: a real number between 0 and 1 with the negative predictive value of the classifier.
             - f1_score: a real number between 0 and 1 with the F-score of the classifier.
             - confusion_matrix: a matrix with the confusion matrix of the classifier.
+        - A vector with a dictionary for the metrics of each class.
     """
 
     numClasses = size(outputs, 2)
@@ -407,24 +407,29 @@ function confusionMatrix(outputs::AbstractArray{Bool,2}, targets::AbstractArray{
     end
 
     if numClasses == 1
-        return confusionMatrix(outputs[:, 1], targets[:, 1])
+        return confusionMatrix(outputs[:, 1], targets[:, 1]), nothing
     end
+
+    # Create a vector of any type to store the results of each class
+    classes_results = Vector{Any}(undef, numClasses)
 
     recall = zeros(Float64, numClasses)
     specificity = zeros(Float64, numClasses)
     precision = zeros(Float64, numClasses)
     negative_predictive_value = zeros(Float64, numClasses)
     f1_score = zeros(Float64, numClasses)
+    accuracy = zeros(Float64, numClasses)
     valid_classes = 0
 
     for class in 1:numClasses
         if any(targets[:, class])
-            cm = confusionMatrix(outputs[:, class], targets[:, class])
-            recall[class] = cm[:recall]
-            specificity[class] = cm[:specificity]
-            precision[class] = cm[:precision]
-            negative_predictive_value[class] = cm[:negative_predictive_value]
-            f1_score[class] = cm[:f1_score]
+            classes_results[class] = confusionMatrix(outputs[:, class], targets[:, class])
+            recall[class] = classes_results[class][:recall]
+            specificity[class] = classes_results[class][:specificity]
+            precision[class] = classes_results[class][:precision]
+            negative_predictive_value[class] = classes_results[class][:negative_predictive_value]
+            f1_score[class] = classes_results[class][:f1_score]
+            accuracy[class] = classes_results[class][:accuracy]
             valid_classes += 1
         end
     end
@@ -443,19 +448,20 @@ function confusionMatrix(outputs::AbstractArray{Bool,2}, targets::AbstractArray{
         agg_precision = sum(precision .* class_weights)
         agg_negative_predictive_value = sum(negative_predictive_value .* class_weights)
         agg_f1_score = sum(f1_score .* class_weights)
+        agg_accuracy = sum(accuracy .* class_weights)
     else
         agg_recall = sum(recall) / valid_classes
         agg_specificity = sum(specificity) / valid_classes
         agg_precision = sum(precision) / valid_classes
         agg_negative_predictive_value = sum(negative_predictive_value) / valid_classes
         agg_f1_score = sum(f1_score) / valid_classes
+        agg_accuracy = sum(accuracy) / valid_classes
     end
-
-    accuracy_val = accuracy(outputs, targets)
-    error_rate = 1 - accuracy_val
+ 
+    error_rate = 1 - agg_accuracy
 
     return Dict(
-        :accuracy => accuracy_val,
+        :accuracy => agg_accuracy,
         :error_rate => error_rate,
         :recall => agg_recall,
         :specificity => agg_specificity,
@@ -463,7 +469,7 @@ function confusionMatrix(outputs::AbstractArray{Bool,2}, targets::AbstractArray{
         :negative_predictive_value => agg_negative_predictive_value,
         :f1_score => agg_f1_score,
         :confusion_matrix => conf_matrix
-    )
+    ), classes_results
 
 end
 

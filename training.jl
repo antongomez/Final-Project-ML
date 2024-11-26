@@ -583,8 +583,6 @@ function modelCrossValidation(
     targets::AbstractArray{<:Any, 1},
     crossValidationIndices::Array{Int64, 1},
     metricsToSave::AbstractArray{<:Union{String, Symbol}, 1} = [:accuracy];
-    showText::Bool = false,
-    showTextEpoch::Bool = false,
     normalizationType::Symbol = :zeroMean)
     """
     This function performs cross-validation for a given model with the specified hyperparameters, inputs, and targets.
@@ -596,7 +594,6 @@ function modelCrossValidation(
         - targets: The targets of the dataset.
         - crossValidationIndices: The indices of the cross-validation.
         - metricsToSave: The metrics to save.
-        - showText: A boolean to show the loss in the console.
         - showTextEpoch: A boolean to show the loss in the console in each epoch.
         - normalizationType: The type of normalization to apply to the data.
     
@@ -607,6 +604,9 @@ function modelCrossValidation(
   
     # Get the number of folds
     n_folds = maximum(crossValidationIndices)
+
+    # Get the number of classes
+    numClasses = length(unique(targets))
   
     # Create a dictionary to store each metric's evaluations
     results_fold = Dict{Symbol, AbstractArray{Float64,1}}()
@@ -623,9 +623,6 @@ function modelCrossValidation(
   
     # For each fold
     for i in 1:n_folds
-        if showText
-            println("Fold ", i, ":")
-        end
   
         if modelType == :ANN
             # Separate training and validation data for this fold
@@ -650,6 +647,11 @@ function modelCrossValidation(
             learningRate = get(modelHyperparameters, "learningRate", nothing)
             maxEpochsVal = get(modelHyperparameters, "maxEpochsVal", nothing)
             transferFunctions = get(modelHyperparameters, "transferFunctions", fill(σ, length(topology)))
+
+            # Create a vector in which each element is a dictionary where the key is the metric and the value is an array with the metric values for each repetition
+            class_iterations_results = [
+                Dict(metric => rand(Float64, repetitionsTraining) for metric in metricsToSave) for _ in 1:numClasses
+            ]
     
             # Initialize each selected metric in the dictionary
             for metric in metricsToSave
@@ -670,10 +672,12 @@ function modelCrossValidation(
                 # Reduce dimension with pca
                 pca = PCA(n_components=0.95)
                 fit!(pca, trainingDatasetFold[1])
-                pca.transform(trainingDatasetFold[1])
-                println(size(trainingDatasetFold[1]))
-                pca.transform(validationDatasetFold[1])
-                pca.transform(testDatasetFold[1])
+                train_inputs = pca.transform(trainingDatasetFold[1])
+                validation_inputs = pca.transform(validationDatasetFold[1])
+                test_inputs = pca.transform(testDatasetFold[1])
+                trainingDatasetFold = (train_inputs, trainingDatasetFold[2])
+                validationDatasetFold = (validation_inputs, validationDatasetFold[2])
+                testDatasetFold = (test_inputs, testDatasetFold[2])
 
             else
                 # Normalize the data
@@ -684,28 +688,29 @@ function modelCrossValidation(
                 # Reduce dimension with pca
                 pca = PCA(n_components=0.95)
                 fit!(pca, trainingDatasetFold[1])
-                pca.transform(trainingDatasetFold[1])
-                pca.transform(testDatasetFold[1])
+                train_inputs = pca.transform(trainingDatasetFold[1])
+                test_inputs = pca.transform(testDatasetFold[1])
+                trainingDatasetFold = (train_inputs, trainingDatasetFold[2])
+                testDatasetFold = (test_inputs, testDatasetFold[2])
             end
 
             for j in 1:repetitionsTraining
                 if validationRatio > 0
-                    (model, trainingLosses, validationLosses, testLosses, best_epoch) = trainClassANN(topology, trainingDatasetFold, validationDataset=validationDatasetFold, testDataset=testDatasetFold, transferFunctions=transferFunctions, maxEpochs=maxEpochs, minLoss=minLoss, learningRate=learningRate, maxEpochsVal=maxEpochsVal, showText=showTextEpoch)
+                    (model, trainingLosses, validationLosses, testLosses, best_epoch) = trainClassANN(topology, trainingDatasetFold, validationDataset=validationDatasetFold, testDataset=testDatasetFold, transferFunctions=transferFunctions, maxEpochs=maxEpochs, minLoss=minLoss, learningRate=learningRate, maxEpochsVal=maxEpochsVal)
                 else
-                    (model, trainingLosses, validationLosses, testLosses, best_epoch) = trainClassANN(topology, trainingDatasetFold, testDataset=testDatasetFold, transferFunctions=transferFunctions, maxEpochs=maxEpochs, minLoss=minLoss, learningRate=learningRate, maxEpochsVal=maxEpochsVal, showText=showTextEpoch)
+                    (model, trainingLosses, validationLosses, testLosses, best_epoch) = trainClassANN(topology, trainingDatasetFold, testDataset=testDatasetFold, transferFunctions=transferFunctions, maxEpochs=maxEpochs, minLoss=minLoss, learningRate=learningRate, maxEpochsVal=maxEpochsVal)
                 end
                 outputs = model(testDatasetFold[1]')'
-                metrics = confusionMatrix(outputs, testDatasetFold[2])
-  
+                metrics, classes_results = confusionMatrix(outputs, testDatasetFold[2])
+                
+                for class in 1:numClasses
+                    for metric in metricsToSave
+                        class_iterations_results[class][metric][j] = classes_results[class][metric]
+                    end
+                end
+                
                 for metric in metricsToSave
                     results_iterations[metric][j] = metrics[metric]
-                end
-
-                if showText
-                    println("\tRepetition ", j, ": ")
-                    for metric in metricsToSave
-                        println("\t\t", metric, ": ", results_iterations[metric][j])
-                    end
                 end
             end
   
@@ -722,9 +727,11 @@ function modelCrossValidation(
             # Reduce dimension with pca
             pca = PCA(n_components=0.95)
             fit!(pca, trainingDatasetFold[1])
-            pca.transform(trainingDatasetFold[1])
-            pca.transform(testDatasetFold[1])
-  
+            training_inputs = pca.transform(trainingDatasetFold[1])
+            test_inputs = pca.transform(testDatasetFold[1])
+            trainingDatasetFold = (training_inputs, trainingDatasetFold[2])
+            testDatasetFold = (test_inputs, testDatasetFold[2])
+
             # Create the SVM model with the specified hyperparameters
             if modelType == :SVM
                 model = SVC(; modelHyperparameters...)
@@ -741,21 +748,23 @@ function modelCrossValidation(
             outputs = predict(model, testDatasetFold[1])
   
             # Calculate metrics
-            matrix, metrics = confusionMatrix(outputs, testDatasetFold[2])
+            metrics, classes_results = confusionMatrix(outputs, testDatasetFold[2])
         end
-  
+
+        println("Mean results for fold ", i, ":")
         for metric in metricsToSave
             if modelType == :ANN
                 results_fold[metric][i] = mean(results_iterations[metric])
+                println("\t$metric: ", results_fold[metric][i])
+                for class in 1:numClasses
+                    println("\t\tClass ", class, ": ", mean(class_iterations_results[class][metric]))
+                end
             else
                 results_fold[metric][i] = metrics[metric]
-            end
-        end
-  
-        if showText
-            println("\tMean results for fold ", i, ":")
-            for metric in metricsToSave
-                println("\t\t$metric: ", results_fold[metric][i])
+                println("\t$metric: ", results_fold[metric][i])
+                for class in 1:numClasses
+                    println("\t\tClass ", class, ": ", classes_results[class][metric])
+                end
             end
         end
     end
