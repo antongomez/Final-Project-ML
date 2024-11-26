@@ -444,7 +444,6 @@ function confusionMatrix(outputs::AbstractArray{Bool,2}, targets::AbstractArray{
         agg_negative_predictive_value = sum(negative_predictive_value .* class_weights)
         agg_f1_score = sum(f1_score .* class_weights)
     else
-        println("Hello")
         agg_recall = sum(recall) / valid_classes
         agg_specificity = sum(specificity) / valid_classes
         agg_precision = sum(precision) / valid_classes

@@ -669,6 +669,7 @@ function modelCrossValidation(
                 pca = PCA(n_components=0.95)
                 fit!(pca, trainingDatasetFold[1])
                 pca.transform(trainingDatasetFold[1])
+                println(size(trainingDatasetFold[1]))
                 pca.transform(validationDatasetFold[1])
                 pca.transform(testDatasetFold[1])
 
