@@ -740,6 +740,13 @@ function crossvalidation(targets::AbstractArray{Bool,2}, k::Int64)
         # Update the index vector for rows corresponding to this class
         indices[class_indices] .= fold_assignments
     end
+
+    # Ensure all indices are assigned to a fold
+    if any(indices .== 0)
+        remaining_indices = findall(indices .== 0)
+        remaining_folds = crossvalidation(length(remaining_indices), k)
+        indices[remaining_indices] .= remaining_folds
+    end
     
     return indices
 end
