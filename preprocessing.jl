@@ -1,10 +1,11 @@
 """
     This script contains functions for data preprocessing, such as one-hot encoding and normalization. It also contains functions for splitting the data into training and testing sets using hold-out technique.
     
-    The script is divided in 3 sections:
-        - One-hot encoding: Functions for one-hot encoding of the data.
-        - Normalization: Functions for normalization of the data.
-        - Splitting: Functions for splitting the data into training and testing sets.
+    The script is divided in 4 sections:
+    1. One-hot encoding: Functions for one-hot encoding of the data.
+    2. Normalization: Functions for normalization of the data.
+    3. Splitting: Functions for splitting the data into training and testing sets.
+    4. Cross-Validation Preprocessing: Functions to preprocess data for cross-validation.
 """
 
 using Random;
@@ -384,4 +385,113 @@ function split_data(input_data, output_data, train_ratio = 0.8)
     
     return train_input, train_output, test_input, test_output
 
+end
+
+""" 4.CROSS-VALIDATION PREPROCESSING """
+
+function crossValidation(N::Int64, k::Int64)
+    """
+    This function assigns patterns to k folds for cross-validation given the number of patterns and the number of folds.
+
+    Parameters:
+        - N: an integer with the number of patterns.
+        - k: an integer with the number of folds.
+    
+    Returns:
+        - A vector with the indices of the folds assigned to each pattern.
+    """
+    
+    # Create a vector with k sorted elements (from 1 to k)
+    folds = collect(1:k)
+    
+    # Repeat the vector enough times to cover N elements
+    repeated_folds = repeat(folds, ceil(Int, N / k))
+    
+    # Take the first N values from the repeated vector
+    indices = repeated_folds[1:N]
+    
+    # Shuffle the indices
+    shuffle!(indices)
+    
+    return indices
+
+end
+
+
+function crossValidation(targets::AbstractArray{Bool,2}, k::Int64)
+    """
+    This function assigns patterns to k folds for cross-validation, ensuring that each class has at least k patterns in each fold, given the targets boolean matrix and the number of folds.
+
+    Parameters:
+        - targets: a boolean matrix with the target values.
+        - k: an integer with the number of folds.
+    
+    Returns:
+        - A vector with the indices of the folds assigned to each pattern.
+    """
+    
+    N = size(targets, 1)  # Number of rows in the target matrix
+    num_classes = size(targets, 2)  # Number of columns (classes) in the target matrix
+    
+    # Create an empty index vector of length N
+    indices = zeros(Int64, N)
+    
+    # Iterate over classes and assign patterns to folds
+    for class in 1:num_classes
+        # Get indices of elements that belong to the current class
+        class_indices = findall(targets[:, class])
+        num_elements_in_class = length(class_indices)
+        
+        # Ensure that each class has at least k patterns
+        if num_elements_in_class < k
+            error("Class $class has fewer patterns ($num_elements_in_class) than the number of folds k=$k")
+        end
+        
+        # Call the crossvalidation function developed earlier for the current class
+        fold_assignments = crossValidation(num_elements_in_class, k)
+        
+        # Update the index vector for rows corresponding to this class
+        indices[class_indices] .= fold_assignments
+    end
+    
+    return indices
+
+end
+
+
+function crossValidation(targets::AbstractArray{<:Any,1}, k::Int64)
+    """
+    This function assigns patterns to k folds for cross-validation, ensuring that each class has at least k patterns in each fold, given the targets vector (not boolean) and the number of folds.
+    
+    Parameters:
+        - targets: a vector with the target values.
+        - k: an integer with the number of folds.
+    
+    Returns:
+        - A vector with the indices of the folds assigned to each pattern.
+    """ 
+    
+    N = length(targets)
+    indices = zeros(Int64, N)
+    num_classes = unique(targets)
+
+    for class in num_classes
+        # Get indices of elements that belong to the current class
+        class_indices = findall(targets .== class)
+        num_elements_in_class = length(class_indices)
+
+        # Ensure that each category has at least k patterns
+        if num_elements_in_class < k
+            error("Class '$class' has fewer patterns ($num_elements_in_class) than the number of folds k=$k")
+        end
+
+        # Assign folds to elements of the current class
+        fold_assignments = crossValidation(num_elements_in_class, k)
+        
+        # Update the index vector for the current class
+        indices[class_indices] .= fold_assignments
+    end
+
+    return indices
+    
 end

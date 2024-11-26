@@ -1,10 +1,9 @@
 """
     This script contains functions to evaluate the performance of classifiers, including confusion matrices and several metrics for binary and multi-class classification problems. It also includes functions to preprocess data for cross-validation.
 
-    The script is divided in 3 sections:
+    The script is divided in 2 sections:
     1. Single Classifier Evaluation: Functions to evaluate the performance of a single classifier for binary and multi-class classification problems.
     2. Multi-class Classifier Evaluation: Functions to evaluate the performance of a multi-class classifier for binary and multi-class classification problems.
-    3. Cross-Validation Preprocessing: Functions to preprocess data for cross-validation.
 """
 
 
@@ -412,7 +411,7 @@ function confusionMatrix(outputs::AbstractArray{Bool,2}, targets::AbstractArray{
     end
 
     recall = zeros(Float64, numClasses)
-    specifity = zeros(Float64, numClasses)
+    specificity = zeros(Float64, numClasses)
     precision = zeros(Float64, numClasses)
     negative_predictive_value = zeros(Float64, numClasses)
     f1_score = zeros(Float64, numClasses)
@@ -422,7 +421,7 @@ function confusionMatrix(outputs::AbstractArray{Bool,2}, targets::AbstractArray{
         if any(targets[:, class])
             cm = confusionMatrix(outputs[:, class], targets[:, class])
             recall[class] = cm[:recall]
-            specifity[class] = cm[:specifity]
+            specificity[class] = cm[:specificity]
             precision[class] = cm[:precision]
             negative_predictive_value[class] = cm[:negative_predictive_value]
             f1_score[class] = cm[:f1_score]
@@ -438,13 +437,14 @@ function confusionMatrix(outputs::AbstractArray{Bool,2}, targets::AbstractArray{
     end
 
     if weighted
-        class_weights = sum(targets, dims=1) ./ sum(targets)
+        class_weights = vec(sum(targets, dims=1) ./ sum(targets))
         agg_recall = sum(recall .* class_weights)
         agg_specificity = sum(specificity .* class_weights)
         agg_precision = sum(precision .* class_weights)
         agg_negative_predictive_value = sum(negative_predictive_value .* class_weights)
         agg_f1_score = sum(f1_score .* class_weights)
     else
+        println("Hello")
         agg_recall = sum(recall) / valid_classes
         agg_specificity = sum(specificity) / valid_classes
         agg_precision = sum(precision) / valid_classes
@@ -533,113 +533,4 @@ function confusionMatrix(outputs::AbstractArray{<:Any,1}, targets::AbstractArray
     # Call the previously defined confusionMatrix function for boolean matrices
     return confusionMatrix(bool_outputs, bool_targets; weighted=weighted)
 
-end
-
-""" 3.CROSS-VALIDATION PREPROCESSING """
-
-function crossvalidation(N::Int64, k::Int64)
-    """
-    This function assigns patterns to k folds for cross-validation given the number of patterns and the number of folds.
-
-    Parameters:
-        - N: an integer with the number of patterns.
-        - k: an integer with the number of folds.
-    
-    Returns:
-        - A vector with the indices of the folds assigned to each pattern.
-    """
-    
-    # Create a vector with k sorted elements (from 1 to k)
-    folds = collect(1:k)
-    
-    # Repeat the vector enough times to cover N elements
-    repeated_folds = repeat(folds, ceil(Int, N / k))
-    
-    # Take the first N values from the repeated vector
-    indices = repeated_folds[1:N]
-    
-    # Shuffle the indices
-    shuffle!(indices)
-    
-    return indices
-
-end
-
-
-function crossvalidation(targets::AbstractArray{Bool,2}, k::Int64)
-    """
-    This function assigns patterns to k folds for cross-validation, ensuring that each class has at least k patterns in each fold, given the targets boolean matrix and the number of folds.
-
-    Parameters:
-        - targets: a boolean matrix with the target values.
-        - k: an integer with the number of folds.
-    
-    Returns:
-        - A vector with the indices of the folds assigned to each pattern.
-    """
-    
-    N = size(targets, 1)  # Number of rows in the target matrix
-    num_classes = size(targets, 2)  # Number of columns (classes) in the target matrix
-    
-    # Create an empty index vector of length N
-    indices = zeros(Int64, N)
-    
-    # Iterate over classes and assign patterns to folds
-    for class in 1:num_classes
-        # Get indices of elements that belong to the current class
-        class_indices = findall(targets[:, class])
-        num_elements_in_class = length(class_indices)
-        
-        # Ensure that each class has at least k patterns
-        if num_elements_in_class < k
-            error("Class $class has fewer patterns ($num_elements_in_class) than the number of folds k=$k")
-        end
-        
-        # Call the crossvalidation function developed earlier for the current class
-        fold_assignments = crossvalidation(num_elements_in_class, k)
-        
-        # Update the index vector for rows corresponding to this class
-        indices[class_indices] .= fold_assignments
     end
-    
-    return indices
-
-end
-
-
-function crossvalidation(targets::AbstractArray{<:Any,1}, k::Int64)
-    """
-    This function assigns patterns to k folds for cross-validation, ensuring that each class has at least k patterns in each fold, given the targets vector (not boolean) and the number of folds.
-    
-    Parameters:
-        - targets: a vector with the target values.
-        - k: an integer with the number of folds.
-    
-    Returns:
-        - A vector with the indices of the folds assigned to each pattern.
-    """ 
-    
-    N = length(targets)
-    indices = zeros(Int64, N)
-    num_classes = unique(targets)
-
-    for class in num_classes
-        # Get indices of elements that belong to the current class
-        class_indices = findall(targets .== class)
-        num_elements_in_class = length(class_indices)
-
-        # Ensure that each category has at least k patterns
-        if num_elements_in_class < k
-            error("Class '$class' has fewer patterns ($num_elements_in_class) than the number of folds k=$k")
-        end
-
-        # Assign folds to elements of the current class
-        fold_assignments = crossvalidation(num_elements_in_class, k)
-        
-        # Update the index vector for the current class
-        indices[class_indices] .= fold_assignments
-    end
-
-    return indices
-    
-end

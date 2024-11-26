@@ -631,8 +631,8 @@ function modelCrossValidation(
             testIdx = findall(crossValidationIndices .== i)
 
             # Get the training and test datasets
-            trainingDatasetFold = (inputs[trainIdx, :], targets[trainIdx])
-            testDatasetFold = (inputs[testIdx, :], reshape(targets[testIdx], :, 1))
+            trainingDatasetFold = (inputs[trainIdx, :], targets[trainIdx, :])
+            testDatasetFold = (inputs[testIdx, :], targets[testIdx, :])
             
             # Here we will store the results for each metric on each repetition
             results_iterations = Dict{Symbol, AbstractArray{Float64,1}}()
