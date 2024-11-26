@@ -583,7 +583,9 @@ function modelCrossValidation(
     targets::AbstractArray{<:Any, 1},
     crossValidationIndices::Array{Int64, 1},
     metricsToSave::AbstractArray{<:Union{String, Symbol}, 1} = [:accuracy];
-    normalizationType::Symbol = :zeroMean)
+    normalizationType::Symbol = :zeroMean,
+    applyPCA::Bool = false,
+    pcaThreshold::Float64 = 0.95)
     """
     This function performs cross-validation for a given model with the specified hyperparameters, inputs, and targets.
     
@@ -670,14 +672,16 @@ function modelCrossValidation(
                 performNormalization!(testDatasetFold[1], normalizationParameters, normalizationType)
 
                 # Reduce dimension with pca
-                pca = PCA(n_components=0.95)
-                fit!(pca, trainingDatasetFold[1])
-                train_inputs = pca.transform(trainingDatasetFold[1])
-                validation_inputs = pca.transform(validationDatasetFold[1])
-                test_inputs = pca.transform(testDatasetFold[1])
-                trainingDatasetFold = (train_inputs, trainingDatasetFold[2])
-                validationDatasetFold = (validation_inputs, validationDatasetFold[2])
-                testDatasetFold = (test_inputs, testDatasetFold[2])
+                if applyPCA
+                    pca = PCA(n_components=pcaThreshold)
+                    fit!(pca, trainingDatasetFold[1])
+                    train_inputs = pca.transform(trainingDatasetFold[1])
+                    validation_inputs = pca.transform(validationDatasetFold[1])
+                    test_inputs = pca.transform(testDatasetFold[1])
+                    trainingDatasetFold = (train_inputs, trainingDatasetFold[2])
+                    validationDatasetFold = (validation_inputs, validationDatasetFold[2])
+                    testDatasetFold = (test_inputs, testDatasetFold[2])
+                end
 
             else
                 # Normalize the data
@@ -686,12 +690,14 @@ function modelCrossValidation(
                 performNormalization!(testDatasetFold[1], normalizationParameters, normalizationType)
 
                 # Reduce dimension with pca
-                pca = PCA(n_components=0.95)
-                fit!(pca, trainingDatasetFold[1])
-                train_inputs = pca.transform(trainingDatasetFold[1])
-                test_inputs = pca.transform(testDatasetFold[1])
-                trainingDatasetFold = (train_inputs, trainingDatasetFold[2])
-                testDatasetFold = (test_inputs, testDatasetFold[2])
+                if applyPCA
+                    pca = PCA(n_components=pcaThreshold)
+                    fit!(pca, trainingDatasetFold[1])
+                    train_inputs = pca.transform(trainingDatasetFold[1])
+                    test_inputs = pca.transform(testDatasetFold[1])
+                    trainingDatasetFold = (train_inputs, trainingDatasetFold[2])
+                    testDatasetFold = (test_inputs, testDatasetFold[2])
+                end
             end
 
             for j in 1:repetitionsTraining
@@ -725,12 +731,14 @@ function modelCrossValidation(
             performNormalization!(testDatasetFold[1], normalizationParameters, normalizationType)
 
             # Reduce dimension with pca
-            pca = PCA(n_components=0.95)
-            fit!(pca, trainingDatasetFold[1])
-            training_inputs = pca.transform(trainingDatasetFold[1])
-            test_inputs = pca.transform(testDatasetFold[1])
-            trainingDatasetFold = (training_inputs, trainingDatasetFold[2])
-            testDatasetFold = (test_inputs, testDatasetFold[2])
+            if applyPCA
+                pca = PCA(n_components=pcaThreshold)
+                fit!(pca, trainingDatasetFold[1])
+                train_inputs = pca.transform(trainingDatasetFold[1])
+                test_inputs = pca.transform(testDatasetFold[1])
+                trainingDatasetFold = (train_inputs, trainingDatasetFold[2])
+                testDatasetFold = (test_inputs, testDatasetFold[2])
+            end
 
             # Create the SVM model with the specified hyperparameters
             if modelType == :SVM
