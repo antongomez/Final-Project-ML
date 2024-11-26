@@ -289,7 +289,9 @@ function trainClassANN(topology::AbstractArray{<:Int,1},
             else
                 epochsWithoutImprovement += 1;
                 if epochsWithoutImprovement >= maxEpochsVal
-                    println("Early stopping triggered at epoch $numEpoch. Best validation loss: $bestValLoss (at epoch $(numEpoch - maxEpochsVal))")
+                    if showText
+                        println("Early stopping triggered at epoch $numEpoch. Best validation loss: $bestValLoss (at epoch $(numEpoch - maxEpochsVal))")
+                    end
                     break
                 end
             end
