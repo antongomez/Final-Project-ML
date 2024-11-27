@@ -740,8 +740,8 @@ function modelCrossValidation(
                 testDatasetFold = (test_inputs, testDatasetFold[2])
             end
 
-            # Create the SVM model with the specified hyperparameters
-            if modelType == :SVM
+            # Create the SVC model with the specified hyperparameters
+            if modelType == :SVC
                 model = SVC(; modelHyperparameters...)
             elseif modelType == :DecisionTree
                 model = DecisionTreeClassifier(; modelHyperparameters...)
@@ -822,6 +822,7 @@ function get_base_model(model_symbol, modelHyperParameters, index)
         return name, GaussianNB(; modelHyperParameters...)
     elseif model_symbol == :ANN
         name = "ANN$index"
+        println("Get base model", typeof(modelHyperParameters))
         modelHyperParameters[:validation_fraction] = get(modelHyperParameters, :validation_fraction, 0)
         if modelHyperParameters[:validation_fraction] == 0
             modelHyperParameters[:early_stopping] = true
@@ -875,6 +876,7 @@ function get_ensemble_model(ensemble_symbol, ensembleHyperParameters, estimators
     if ensemble_symbol == :Voting
         base_models = []
         for (i, (modelType, modelHyperParameters)) in enumerate(zip(estimators, modelsHyperParameters))
+            println("Get ensemble model", typeof(modelHyperParameters))
             modelName, model = get_base_model(modelType, modelHyperParameters, i)
             push!(base_models, (modelName, model))
         end
@@ -903,15 +905,16 @@ function get_ensemble_model(ensemble_symbol, ensembleHyperParameters, estimators
     end
 end
 
-function trainClassEnsemble(estimators::AbstractArray{Symbol,1}, 
-    modelsHyperParameters::Array{Dict, 1},     
-    trainingDataset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,2}},   
-    kFoldIndices::Array{Int64,1},
-    ensembleType::Symbol=:Voting,
-    ensembleHyperParameters::Dict=Dict(),
-    metricsToSave::AbstractArray{<:String,1}=["accuracy"],
-    showText=false,
-    normalizationType::Symbol=:zeroMean)
+function trainClassEnsemble(estimators::AbstractArray{Symbol, 1},
+    modelsHyperParameters::Array{Dict, 1},
+    trainingDataset::Tuple{AbstractArray{<:Real, 2}, AbstractArray{Bool, 2}},
+    kFoldIndices::Array{Int64, 1};
+    ensembleType::Symbol = :Voting,
+    ensembleHyperParameters::Dict = Dict(),
+    metricsToSave::AbstractArray{<:String, 1} = ["accuracy"],
+    showText::Bool = false,
+    normalizationType::Symbol = :zeroMean)
+    
     """
     This function trains an ensemble model with the specified parameters with the training dataset using k-fold cross-validation, receiving the inputs and targets as both real and boolean matrixes, respectively.
     
@@ -929,7 +932,7 @@ function trainClassEnsemble(estimators::AbstractArray{Symbol,1},
     Returns:
         - results_fold: A list with the results of each fold.
     """
-
+    
     # Check if the ensemble type is allowed
     ensembles_allowed = [:Voting, :Stacking, :Bagging, :AdaBoost, :GradientBoosting]
     if !(ensembleType in ensembles_allowed)
@@ -987,7 +990,7 @@ function trainClassEnsemble(baseEstimator::Symbol,
     ensembleType::Symbol=:Voting,
     ensembleHyperParameters::Dict=Dict(),
     metricsToSave::AbstractArray{<:String,1}=["accuracy"],
-    showText=false,
+    showText::Bool = false,
     normalizationType::Symbol=:zeroMean)
     """
     This function trains an ensemble model with the same base model using k-fold cross-validation, receiving the inputs and targets as both real and boolean matrixes, respectively.
