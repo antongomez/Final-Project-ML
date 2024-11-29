@@ -581,8 +581,8 @@ function modelCrossValidation(
     modelHyperparameters::Dict,
     inputs::AbstractArray{<:Real, 2},
     targets::AbstractArray{<:Any, 1},
-    crossValidationIndices::Array{Int64, 1},
-    metricsToSave::AbstractArray{<:Union{String, Symbol}, 1} = [:accuracy];
+    crossValidationIndices::Array{Int64, 1};
+    metricsToSave::AbstractArray{<:Union{String, Symbol}, 1} = [:accuracy],
     normalizationType::Symbol = :zeroMean,
     applyPCA::Bool = false,
     pcaThreshold::Float64 = 0.95)
@@ -612,6 +612,11 @@ function modelCrossValidation(
   
     # Create a dictionary to store each metric's evaluations
     results_fold = Dict{Symbol, AbstractArray{Float64,1}}()
+    
+    # Create a vector in which each element is a dictionary where the key is the metric and the value is an array with the metric values for each fold
+    class_fold_results = [
+        Dict(metric => rand(Float64, n_folds) for metric in metricsToSave) for _ in 1:numClasses
+    ]
 
     # Initialize each selected metric in the dictionary
     for metric in metricsToSave
@@ -634,10 +639,7 @@ function modelCrossValidation(
             # Get the training and test datasets
             trainingDatasetFold = (inputs[trainIdx, :], targets[trainIdx, :])
             testDatasetFold = (inputs[testIdx, :], targets[testIdx, :])
-            
-            # Here we will store the results for each metric on each repetition
-            results_iterations = Dict{Symbol, AbstractArray{Float64,1}}()
-  
+
             # Check mandatory hyperparameters
             topology = modelHyperparameters["topology"]
   
@@ -649,16 +651,19 @@ function modelCrossValidation(
             learningRate = get(modelHyperparameters, "learningRate", nothing)
             maxEpochsVal = get(modelHyperparameters, "maxEpochsVal", nothing)
             transferFunctions = get(modelHyperparameters, "transferFunctions", fill(σ, length(topology)))
+            
+            # Here we will store the results for each metric on each repetition
+            results_iterations = Dict{Symbol, AbstractArray{Float64,1}}()
+
+            # Initialize each selected metric in the dictionary
+            for metric in metricsToSave
+                results_iterations[metric] = zeros(Float64, repetitionsTraining)
+            end
 
             # Create a vector in which each element is a dictionary where the key is the metric and the value is an array with the metric values for each repetition
             class_iterations_results = [
                 Dict(metric => rand(Float64, repetitionsTraining) for metric in metricsToSave) for _ in 1:numClasses
             ]
-    
-            # Initialize each selected metric in the dictionary
-            for metric in metricsToSave
-                results_iterations[metric] = zeros(Float64, repetitionsTraining)
-            end
   
             if validationRatio > 0
                 train_indices, val_indices = holdOut(size(trainingDatasetFold[1], 1), validationRatio)
@@ -747,6 +752,12 @@ function modelCrossValidation(
                 model = DecisionTreeClassifier(; modelHyperparameters...)
             elseif modelType == :KNN
                 model = KNeighborsClassifier(; modelHyperparameters...)
+            elseif modelType == :scikit_ANN
+                model = MLPClassifier(; modelHyperparameters...)
+            elseif modelType == :LR
+                model = LogisticRegression(; modelHyperparameters...)
+            elseif modelType == :NB
+                model = GaussianNB(; modelHyperparameters...)
             else
                 error("Model type: $modelType not supported.")
             end
@@ -766,12 +777,14 @@ function modelCrossValidation(
                 println("\t$metric: ", results_fold[metric][i])
                 for class in 1:numClasses
                     println("\t\tClass ", class, ": ", mean(class_iterations_results[class][metric]))
+                    class_fold_results[class][metric][i] = mean(class_iterations_results[class][metric])
                 end
             else
                 results_fold[metric][i] = metrics[metric]
                 println("\t$metric: ", results_fold[metric][i])
                 for class in 1:numClasses
                     println("\t\tClass ", class, ": ", classes_results[class][metric])
+                    class_fold_results[class][metric][i] = classes_results[class][metric]
                 end
             end
         end
@@ -780,13 +793,19 @@ function modelCrossValidation(
     # Return the mean of each metric for each fold
     mean_results = Dict{Symbol, Float64}()
     std_results = Dict{Symbol, Float64}()
+
     for metric in metricsToSave
         mean_results[metric] = mean(results_fold[metric])
         std_results[metric] = std(results_fold[metric])
         println("Mean $metric: ", mean_results[metric], " ± ", std_results[metric])
+        for class in 1:numClasses
+            mean_class = mean(class_fold_results[class][metric])
+            std_class = std(class_fold_results[class][metric])
+            println("\tClass ", class, ": ", mean_class, " ± ", std_class)
+        end   
     end
   
-    return mean_results, std_results
+    return results_fold, class_fold_results
   
 end
 
@@ -849,10 +868,12 @@ function update_metrics!(predictions, targets, metricsToSave, results_fold, i, s
     Returns:
         - results_fold: The results adding the one of the current fold.
     """
-    if isa(predictions, AbstractVector)
-        predictions = reshape(predictions, :, 1)
-    end
-    matrix, metrics = confusionMatrix(predictions, targets)
+    # if isa(predictions, AbstractVector)
+    #     predictions = reshape(predictions, :, 1)
+    # end
+    # println(predictions)
+    # println(targets)
+    metrics, _ = confusionMatrix(predictions, targets)
     for metric in metricsToSave
         results_fold[metric][i] = metrics[metric]
         if showText
@@ -908,11 +929,11 @@ end
 function trainClassEnsemble(
     estimators::AbstractArray{Symbol, 1},
     modelsHyperParameters::Vector{Dict},
-    trainingDataset::Tuple{AbstractMatrix{<:Real}, AbstractVector{Any}},
+    trainingDataset::Tuple{AbstractArray{<:Real,2}, AbstractArray{<:Any, 1}},
     kFoldIndices::Array{Int64, 1};
     ensembleType::Symbol=:Voting,
     ensembleHyperParameters::Dict=Dict(),
-    metricsToSave::AbstractArray{<:String, 1}=["accuracy"],
+    metricsToSave::AbstractArray{Symbol, 1}=["accuracy"],
     showText::Bool=false,
     normalizationType::Symbol=:zeroMean,
     applyPCA::Bool=false,
@@ -951,7 +972,7 @@ function trainClassEnsemble(
     n_folds = maximum(kFoldIndices)
 
     # Initialize dictionary to store results of each metric
-    results_fold = Dict{String,AbstractArray{Float64,1}}()
+    results_fold = Dict{Symbol,AbstractArray{Float64,1}}()
     for metric in metricsToSave
         results_fold[metric] = zeros(Float64, n_folds)
     end
@@ -964,8 +985,8 @@ function trainClassEnsemble(
         # Split the dataset into training and test according to the fold
         trainIdx = findall(kFoldIndices .!= i)
         testIdx = findall(kFoldIndices .== i)
-        trainingDatasetFold = (inputs[trainIdx, :], targets[trainIdx, :])
-        testDatasetFold = (inputs[testIdx, :], targets[testIdx, :])
+        trainingDatasetFold = (inputs[trainIdx, :], targets[trainIdx])
+        testDatasetFold = (inputs[testIdx, :], targets[testIdx])
 
         # Normalize the datasets
         normalizationParameters = calculateNormalizationParameters(trainingDatasetFold[1], normalizationType)
@@ -996,10 +1017,9 @@ function trainClassEnsemble(
         predictions = ensemble.predict(testDatasetFold[1])
 
         # Update metrics
-        println("type", typeof(testDatasetFold[2]))
-        test_output_onehot = oneHotEncoding(testDatasetFold[2])
-        println(typeof(test_output_onehot))
-        update_metrics!(predictions, test_output_onehot, metricsToSave, results_fold, i, showText)
+        #test_output_onehot = oneHotEncoding(testDatasetFold[2])
+        #println(typeof(test_output_onehot))
+        update_metrics!(predictions, testDatasetFold[2], metricsToSave, results_fold, i, showText)
     end
 
     # Print mean and std for each metric
