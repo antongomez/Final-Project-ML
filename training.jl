@@ -743,7 +743,7 @@ function modelCrossValidation(
             # Create the SVC model with the specified hyperparameters
             if modelType == :SVC
                 model = SVC(; modelHyperparameters...)
-            elseif modelType == :DecisionTree
+            elseif modelType == :DT
                 model = DecisionTreeClassifier(; modelHyperparameters...)
             elseif modelType == :KNN
                 model = KNeighborsClassifier(; modelHyperparameters...)
@@ -805,6 +805,7 @@ function get_base_model(model_symbol, modelHyperParameters, index)
         - name: The name of the model.
         - model: The model with the specified hyperparameters.
     """
+    
     if model_symbol == :DT
         name = "DT$index"
         return name, DecisionTreeClassifier(; modelHyperParameters...)
@@ -876,7 +877,6 @@ function get_ensemble_model(ensemble_symbol, ensembleHyperParameters, estimators
     if ensemble_symbol == :Voting
         base_models = []
         for (i, (modelType, modelHyperParameters)) in enumerate(zip(estimators, modelsHyperParameters))
-            println("Get ensemble model", typeof(modelHyperParameters))
             modelName, model = get_base_model(modelType, modelHyperParameters, i)
             push!(base_models, (modelName, model))
         end
@@ -905,32 +905,37 @@ function get_ensemble_model(ensemble_symbol, ensembleHyperParameters, estimators
     end
 end
 
-function trainClassEnsemble(estimators::AbstractArray{Symbol, 1},
-    modelsHyperParameters::Array{Dict, 1},
-    trainingDataset::Tuple{AbstractArray{<:Real, 2}, AbstractArray{Bool, 2}},
+function trainClassEnsemble(
+    estimators::AbstractArray{Symbol, 1},
+    modelsHyperParameters::Vector{Dict},
+    trainingDataset::Tuple{AbstractMatrix{<:Real}, AbstractVector{Any}},
     kFoldIndices::Array{Int64, 1};
-    ensembleType::Symbol = :Voting,
-    ensembleHyperParameters::Dict = Dict(),
-    metricsToSave::AbstractArray{<:String, 1} = ["accuracy"],
-    showText::Bool = false,
-    normalizationType::Symbol = :zeroMean)
-    
+    ensembleType::Symbol=:Voting,
+    ensembleHyperParameters::Dict=Dict(),
+    metricsToSave::AbstractArray{<:String, 1}=["accuracy"],
+    showText::Bool=false,
+    normalizationType::Symbol=:zeroMean,
+    applyPCA::Bool=false,
+    pcaThreshold::Float64=0.95
+)
     """
-    This function trains an ensemble model with the specified parameters with the training dataset using k-fold cross-validation, receiving the inputs and targets as both real and boolean matrixes, respectively.
+    This function trains an ensemble model with the specified parameters with the training dataset using k-fold cross-validation, receiving the inputs and targets as both real and boolean matrices, respectively.
     
     Parameters:
         - estimators: The estimators of the ensemble model.
         - modelsHyperParameters: The hyperparameters of the base models.
-        - trainingDataset: Tuple with the inputs and targets of the training dataset, both as real and boolean matrixes, respectively.
+        - trainingDataset: Tuple with the inputs and targets of the training dataset, both as real and boolean matrices, respectively.
         - kFoldIndices: Array with the indices of the k-fold cross-validation.
         - ensembleType: The type of the ensemble model.
         - ensembleHyperParameters: The hyperparameters of the ensemble model.
         - metricsToSave: The metrics to save.
         - showText: A boolean to show the loss in the console.
         - normalizationType: The type of normalization to apply to the data.
+        - applyPCA: Whether to apply PCA for dimensionality reduction.
+        - pcaThreshold: The PCA variance threshold for dimensionality reduction.
     
     Returns:
-        - results_fold: A list with the results of each fold.
+        - results_fold: A dictionary with the results of each fold for each metric.
     """
     
     # Check if the ensemble type is allowed
@@ -955,32 +960,56 @@ function trainClassEnsemble(estimators::AbstractArray{Symbol, 1},
         if showText
             println("Fold ", i, ":")
         end
+
         # Split the dataset into training and test according to the fold
-        trainingDatasetFold = (inputs[kFoldIndices.!=i, :], targets[kFoldIndices.!=i, :])
-        testDatasetFold = (inputs[kFoldIndices.==i, :], targets[kFoldIndices.==i, :])
+        trainIdx = findall(kFoldIndices .!= i)
+        testIdx = findall(kFoldIndices .== i)
+        trainingDatasetFold = (inputs[trainIdx, :], targets[trainIdx, :])
+        testDatasetFold = (inputs[testIdx, :], targets[testIdx, :])
+
         # Normalize the datasets
         normalizationParameters = calculateNormalizationParameters(trainingDatasetFold[1], normalizationType)
         performNormalization!(trainingDatasetFold[1], normalizationParameters, normalizationType)
         performNormalization!(testDatasetFold[1], normalizationParameters, normalizationType)
 
-        # Reduce dimension with pca
-        pca = PCA(n_components=0.95)
-        fit!(pca, trainingDatasetFold[1])
-        pca.transform(trainingDatasetFold[1])
-        pca.transform(testDatasetFold[1])
-        
-        # Creat the ensemble model, train and evaluate it
+        # Apply PCA if specified
+        if applyPCA
+            pca = PCA(n_components=pcaThreshold)
+            fit!(pca, trainingDatasetFold[1])
+            trainingDatasetFold = (
+                pca.transform(trainingDatasetFold[1]),
+                trainingDatasetFold[2]
+            )
+            testDatasetFold = (
+                pca.transform(testDatasetFold[1]),
+                testDatasetFold[2]
+            )
+        end
+
+        # Create the ensemble model
         ensemble = get_ensemble_model(ensembleType, ensembleHyperParameters, estimators, modelsHyperParameters)
-        fit!(ensemble, trainingDatasetFold[1], vec(trainingDatasetFold[2]))
+        
+        # Train the ensemble
+        fit!(ensemble, trainingDatasetFold[1], trainingDatasetFold[2])
+
+        # Predict on the test set
         predictions = ensemble.predict(testDatasetFold[1])
-        update_metrics!(predictions, testDatasetFold[2], metricsToSave, results_fold, i, showText)
+
+        # Update metrics
+        println("type", typeof(testDatasetFold[2]))
+        test_output_onehot = oneHotEncoding(testDatasetFold[2])
+        println(typeof(test_output_onehot))
+        update_metrics!(predictions, test_output_onehot, metricsToSave, results_fold, i, showText)
+    end
+
+    # Print mean and std for each metric
+    for metric in metricsToSave
+        println("Mean $metric: ", mean(results_fold[metric]), " ± ", std(results_fold[metric]))
     end
     
-    for metric in metricsToSave
-        print("Mean $metric: ", mean(results_fold[metric]), " ± ", std(results_fold[metric]))
-    end
     return results_fold
 end
+
 
 function trainClassEnsemble(baseEstimator::Symbol, 
     modelsHyperParameters::Dict,
