@@ -33,13 +33,13 @@ include("preprocessing.jl");
 
 """ 1. ANN """
 
-function buildClassANN(numInputs::Int, 
-    topology::AbstractArray{<:Int,1}, 
+function buildClassANN(numInputs::Int,
+    topology::AbstractArray{<:Int,1},
     numOutputs::Int;
     transferFunctions::AbstractArray{<:Function,1}=fill(σ, length(topology)))
     """
     This function builds a neural_network with the specfied parameters.
-    
+
     Parameters:
         - numInputs: Number of inputs of the network.
         - topology: Array with the number of neurons in each hidden layer.
@@ -48,23 +48,23 @@ function buildClassANN(numInputs::Int,
     Returns:
         - ann: The neural network.
     """
-    
+
     @assert length(transferFunctions) == length(topology)
 
-    ann=Chain();
-    numInputsLayer = numInputs;
+    ann = Chain()
+    numInputsLayer = numInputs
     for numHiddenLayer in 1:length(topology)
-        numNeurons = topology[numHiddenLayer];
-        ann = Chain(ann..., Dense(numInputsLayer, numNeurons, transferFunctions[numHiddenLayer]));
-        numInputsLayer = numNeurons;
-    end;
+        numNeurons = topology[numHiddenLayer]
+        ann = Chain(ann..., Dense(numInputsLayer, numNeurons, transferFunctions[numHiddenLayer]))
+        numInputsLayer = numNeurons
+    end
     if (numOutputs == 1)
-        ann = Chain(ann..., Dense(numInputsLayer, 1, σ));
+        ann = Chain(ann..., Dense(numInputsLayer, 1, σ))
     else
-        ann = Chain(ann..., Dense(numInputsLayer, numOutputs, identity));
-        ann = Chain(ann..., softmax);
-    end;
-    return ann;
+        ann = Chain(ann..., Dense(numInputsLayer, numOutputs, identity))
+        ann = Chain(ann..., softmax)
+    end
+    return ann
 
 end;
 
@@ -78,7 +78,7 @@ function calculate_and_log_loss(model,
 )
     """
     This function calculates the loss of the model and logs it to the console.
-    
+
     Parameters:
         - model: The model to calculate the loss.
         - inputs: The inputs to calculate the loss.
@@ -87,7 +87,7 @@ function calculate_and_log_loss(model,
         - loss_function: The loss function to calculate the loss.
         - showText: A boolean to show the loss in the console.
         - epoch: The epoch number to show in the console.
-    
+
     Returns:
         - loss_value: The value of the loss.
     """
@@ -98,19 +98,19 @@ function calculate_and_log_loss(model,
         end
         println("\t$label Loss: ", loss_value)
     end
-    return loss_value;
+    return loss_value
 end
 
-function trainClassANN(topology::AbstractArray{<:Int,1},      
-    dataset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,2}};
+function trainClassANN(topology::AbstractArray{<:Int,1},
+    dataset::Tuple{AbstractArray{<:Real,2},AbstractArray{Bool,2}};
     transferFunctions::AbstractArray{<:Function,1}=fill(σ, length(topology)),
-    maxEpochs::Int=1000, 
-    minLoss::Real=0.0, 
+    maxEpochs::Int=1000,
+    minLoss::Real=0.0,
     learningRate::Real=0.01,
-    showText::Bool=false) 
+    showText::Bool=false)
     """
     This function trains a neural network with the specified parameters only with the training dataset, receiving the inputs and targets as both real and boolean matrixes, respectively.
-    
+
     Parameters:
         - topology: Array with the number of neurons in each hidden layer.
         - dataset: Tuple with the inputs and targets of the dataset, both as real and boolean matrixes, respectively.
@@ -125,47 +125,47 @@ function trainClassANN(topology::AbstractArray{<:Int,1},
         - trainingLosses: The losses of the training in each epoch.
     """
 
-    (inputs, targets) = dataset;
+    (inputs, targets) = dataset
 
     # This function assumes that each sample is in a row
     # we are going to check the numeber of samples to have same inputs and targets
-    @assert(size(inputs,1)==size(targets,1));
+    @assert(size(inputs, 1) == size(targets, 1))
 
-    ann = buildClassANN(size(inputs,2), topology, size(targets,2), transferFunctions = transferFunctions);
+    ann = buildClassANN(size(inputs, 2), topology, size(targets, 2), transferFunctions=transferFunctions)
 
-    loss(model,x,y) = (size(y,1) == 1) ? Losses.binarycrossentropy(model(x),y) : Losses.crossentropy(model(x),y);
+    loss(model, x, y) = (size(y, 1) == 1) ? Losses.binarycrossentropy(model(x), y) : Losses.crossentropy(model(x), y)
 
-    trainingLosses = Float32[];
-    numEpoch = 0;
+    trainingLosses = Float32[]
+    numEpoch = 0
 
     # Calcualte the initial loss
-    trainingLoss = calculate_and_log_loss(ann, inputs, targets, "Training", loss, showText, epoch = numEpoch);
-    push!(trainingLosses, trainingLoss);
+    trainingLoss = calculate_and_log_loss(ann, inputs, targets, "Training", loss, showText, epoch=numEpoch)
+    push!(trainingLosses, trainingLoss)
 
-    opt_state = Flux.setup(Adam(learningRate), ann);
+    opt_state = Flux.setup(Adam(learningRate), ann)
 
     # Start the training until it reaches one of the stop critteria
-    while (numEpoch<maxEpochs) && (trainingLoss>minLoss)
+    while (numEpoch < maxEpochs) && (trainingLoss > minLoss)
 
         # For each epoch, we habve to train and consequently traspose the pattern to have then in columns
-        Flux.train!(loss, ann, [(inputs', targets')], opt_state);
+        Flux.train!(loss, ann, [(inputs', targets')], opt_state)
 
-        numEpoch += 1;
-        trainingLoss = calculate_and_log_loss(ann, inputs, targets, "Training", loss, showText, epoch = numEpoch);
-        push!(trainingLosses, trainingLoss);
+        numEpoch += 1
+        trainingLoss = calculate_and_log_loss(ann, inputs, targets, "Training", loss, showText, epoch=numEpoch)
+        push!(trainingLosses, trainingLoss)
 
-    end;
-    return (ann, trainingLosses);
+    end
+    return (ann, trainingLosses)
 
 end;
 
-function trainClassANN(topology::AbstractArray{<:Int,1},      
-    (inputs, targets)::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,1}};      
-    transferFunctions::AbstractArray{<:Function,1}=fill(σ, length(topology)),      
-    maxEpochs::Int=1000, 
-    minLoss::Real=0.0, 
+function trainClassANN(topology::AbstractArray{<:Int,1},
+    (inputs, targets)::Tuple{AbstractArray{<:Real,2},AbstractArray{Bool,1}};
+    transferFunctions::AbstractArray{<:Function,1}=fill(σ, length(topology)),
+    maxEpochs::Int=1000,
+    minLoss::Real=0.0,
     learningRate::Real=0.01,
-    showText::Bool=false) 
+    showText::Bool=false)
     """
     This function trains a neural network with the specified parameters only with the training dataset, receiving the inputs and targets as real matrix and boolean vector, respectively.
 
@@ -178,27 +178,27 @@ function trainClassANN(topology::AbstractArray{<:Int,1},
         - minLoss: The minimum loss to stop the training.
         - learningRate: The learning rate of the network.
         - showText: A boolean to show the loss in the console.
-    
+
     Returns:
         - ann: The trained neural network.
         - trainingLosses: The losses of the training in each epoch.
     """
-    
-    return trainClassANN(topology, (inputs, reshape(targets, length(targets), 1)), transferFunctions=transferFunctions, maxEpochs=maxEpochs, minLoss=minLoss, learningRate=learningRate, showText=showText);
+
+    return trainClassANN(topology, (inputs, reshape(targets, length(targets), 1)), transferFunctions=transferFunctions, maxEpochs=maxEpochs, minLoss=minLoss, learningRate=learningRate, showText=showText)
 
 end;
 
 """ 2. EARLY STOPPING """
 
-function trainClassANN(topology::AbstractArray{<:Int,1},  
-    trainingDataset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,2}}; 
-    validationDataset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,2}}=(Array{eltype(trainingDataset[1]),2}(undef,0,0), falses(0,0)), 
-    testDataset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,2}}=(Array{eltype(trainingDataset[1]),2}(undef,0,0), falses(0,0)), 
-    transferFunctions::AbstractArray{<:Function,1}=fill(σ, length(topology)), 
-    maxEpochs::Int=1000, 
-    minLoss::Real=0.0, 
-    learningRate::Real=0.01,  
-    maxEpochsVal::Int=20, 
+function trainClassANN(topology::AbstractArray{<:Int,1},
+    trainingDataset::Tuple{AbstractArray{<:Real,2},AbstractArray{Bool,2}};
+    validationDataset::Tuple{AbstractArray{<:Real,2},AbstractArray{Bool,2}}=(Array{eltype(trainingDataset[1]),2}(undef, 0, 0), falses(0, 0)),
+    testDataset::Tuple{AbstractArray{<:Real,2},AbstractArray{Bool,2}}=(Array{eltype(trainingDataset[1]),2}(undef, 0, 0), falses(0, 0)),
+    transferFunctions::AbstractArray{<:Function,1}=fill(σ, length(topology)),
+    maxEpochs::Int=1000,
+    minLoss::Real=0.0,
+    learningRate::Real=0.01,
+    maxEpochsVal::Int=20,
     showText::Bool=false)
     """
     This function trains a neural network with the specified parameters with the training, validation, and test datasets, receiving the inputs and targets as both real and boolean matrixes, respectively, and performing early stopping with the validation dataset.
@@ -214,7 +214,7 @@ function trainClassANN(topology::AbstractArray{<:Int,1},
         - learningRate: The learning rate of the network.
         - maxEpochsVal: The maximum number of epochs without improvement in the validation loss to stop the training.
         - showText: A boolean to show the loss in the console.
-    
+
     Returns:
         - finalModel: The trained neural network.
         - trainingLosses: The losses of the training in each epoch.
@@ -223,9 +223,9 @@ function trainClassANN(topology::AbstractArray{<:Int,1},
         - bestEpoch: The epoch with the best validation loss.
     """
 
-    (inputs, targets) = trainingDataset;
+    (inputs, targets) = trainingDataset
     # Check that the number of samples matches in inputs and targets
-    @assert(size(inputs,1) == size(targets,1));
+    @assert(size(inputs, 1) == size(targets, 1))
 
     # Check if validation and test sets have been provided and if they have the correct dimensions
     val_set = false
@@ -245,49 +245,49 @@ function trainClassANN(topology::AbstractArray{<:Int,1},
         @assert(size(test_targets, 2) == size(targets, 2))
     end
 
-    ann = buildClassANN(size(inputs,2), topology, size(targets,2), transferFunctions = transferFunctions);
-    loss(model, x, y) = (size(y,1) == 1) ? Losses.binarycrossentropy(model(x), y) : Losses.crossentropy(model(x), y);
-    opt_state = Flux.setup(Adam(learningRate), ann);
+    ann = buildClassANN(size(inputs, 2), topology, size(targets, 2), transferFunctions=transferFunctions)
+    loss(model, x, y) = (size(y, 1) == 1) ? Losses.binarycrossentropy(model(x), y) : Losses.crossentropy(model(x), y)
+    opt_state = Flux.setup(Adam(learningRate), ann)
 
     # Initialize training, validation, and test loss history
-    trainingLosses = Float32[];
-    validationLosses = Float32[];
-    testLosses = Float32[];
+    trainingLosses = Float32[]
+    validationLosses = Float32[]
+    testLosses = Float32[]
 
     # Initialize counters and variables for early stopping
-    numEpoch = 0;
-    bestValLoss = Inf;
-    bestModel = deepcopy(ann);
-    bestEpoch = 0;
-    epochsWithoutImprovement = 0;
+    numEpoch = 0
+    bestValLoss = Inf
+    bestModel = deepcopy(ann)
+    bestEpoch = 0
+    epochsWithoutImprovement = 0
 
     # Show initial feedback
-    push!(trainingLosses, calculate_and_log_loss(ann, inputs, targets, "Training", loss, showText, epoch = numEpoch))
+    push!(trainingLosses, calculate_and_log_loss(ann, inputs, targets, "Training", loss, showText, epoch=numEpoch))
     if val_set
-        push!(validationLosses, calculate_and_log_loss(ann, val_inputs, val_targets, "Validation", loss, showText, epoch = numEpoch))
+        push!(validationLosses, calculate_and_log_loss(ann, val_inputs, val_targets, "Validation", loss, showText, epoch=numEpoch))
     end
     if test_set
-        push!(testLosses, calculate_and_log_loss(ann, test_inputs, test_targets, "Test", loss, showText, epoch = numEpoch))
+        push!(testLosses, calculate_and_log_loss(ann, test_inputs, test_targets, "Test", loss, showText, epoch=numEpoch))
     end
 
     # Training loop
     while (numEpoch < maxEpochs) && (trainingLosses[end] > minLoss)
 
-        Flux.train!(loss, ann, [(inputs', targets')], opt_state);
-        numEpoch += 1;
-        push!(trainingLosses, calculate_and_log_loss(ann, inputs, targets, "Training", loss, showText, epoch = numEpoch));
+        Flux.train!(loss, ann, [(inputs', targets')], opt_state)
+        numEpoch += 1
+        push!(trainingLosses, calculate_and_log_loss(ann, inputs, targets, "Training", loss, showText, epoch=numEpoch))
 
         if val_set
-            push!(validationLosses, calculate_and_log_loss(ann, val_inputs, val_targets, "Validation", loss, showText, epoch = numEpoch));
+            push!(validationLosses, calculate_and_log_loss(ann, val_inputs, val_targets, "Validation", loss, showText, epoch=numEpoch))
 
             # Early stopping: Check if validation loss improves
             if validationLosses[end] < bestValLoss
-                bestValLoss = validationLosses[end];
-                bestModel = deepcopy(ann);
-                bestEpoch = numEpoch;
-                epochsWithoutImprovement = 0;
+                bestValLoss = validationLosses[end]
+                bestModel = deepcopy(ann)
+                bestEpoch = numEpoch
+                epochsWithoutImprovement = 0
             else
-                epochsWithoutImprovement += 1;
+                epochsWithoutImprovement += 1
                 if epochsWithoutImprovement >= maxEpochsVal
                     if showText
                         println("Early stopping triggered at epoch $numEpoch. Best validation loss: $bestValLoss (at epoch $(numEpoch - maxEpochsVal))")
@@ -299,30 +299,30 @@ function trainClassANN(topology::AbstractArray{<:Int,1},
         end
 
         if test_set
-            push!(testLosses, calculate_and_log_loss(ann, test_inputs, test_targets, "Test", loss, showText, epoch = numEpoch));
+            push!(testLosses, calculate_and_log_loss(ann, test_inputs, test_targets, "Test", loss, showText, epoch=numEpoch))
         end
-        
+
     end
 
     if val_set
-        finalModel = bestModel;
+        finalModel = bestModel
     else
-        finalModel = ann;
+        finalModel = ann
     end
 
-    return (finalModel, trainingLosses, validationLosses, testLosses, bestEpoch);
+    return (finalModel, trainingLosses, validationLosses, testLosses, bestEpoch)
 
 end
 
-function trainClassANN(topology::AbstractArray{<:Int,1},  
-    trainingDataset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,1}}; 
-    validationDataset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,1}}=(Array{eltype(trainingDataset[1]),2}(undef,0,0), falses(0)), 
-    testDataset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,1}}=(Array{eltype(trainingDataset[1]),2}(undef,0,0), falses(0)), 
-    transferFunctions::AbstractArray{<:Function,1}=fill(σ, length(topology)), 
-    maxEpochs::Int=1000, 
-    minLoss::Real=0.0, 
-    learningRate::Real=0.01,  
-    maxEpochsVal::Int=20, 
+function trainClassANN(topology::AbstractArray{<:Int,1},
+    trainingDataset::Tuple{AbstractArray{<:Real,2},AbstractArray{Bool,1}};
+    validationDataset::Tuple{AbstractArray{<:Real,2},AbstractArray{Bool,1}}=(Array{eltype(trainingDataset[1]),2}(undef, 0, 0), falses(0)),
+    testDataset::Tuple{AbstractArray{<:Real,2},AbstractArray{Bool,1}}=(Array{eltype(trainingDataset[1]),2}(undef, 0, 0), falses(0)),
+    transferFunctions::AbstractArray{<:Function,1}=fill(σ, length(topology)),
+    maxEpochs::Int=1000,
+    minLoss::Real=0.0,
+    learningRate::Real=0.01,
+    maxEpochsVal::Int=20,
     showText::Bool=false)
     """
     This function trains a neural network with the specified parameters with the training, validation, and test datasets, receiving the inputs as a real matrix and the targets as a boolean vector, and performing early stopping with the validation dataset.
@@ -338,7 +338,7 @@ function trainClassANN(topology::AbstractArray{<:Int,1},
         - learningRate: The learning rate of the network.
         - maxEpochsVal: The maximum number of epochs without improvement in the validation loss to stop the training.
         - showText: A boolean to show the loss in the console.
-    
+
     Returns:
         - finalModel: The trained neural network.
         - trainingLosses: The losses of the training in each epoch.
@@ -354,37 +354,37 @@ function trainClassANN(topology::AbstractArray{<:Int,1},
     reshapedTestDataset = (testDataset[1], reshape(testDataset[2], length(testDataset[2]), 1))
 
     # Reuse the main trainClassANN function with reshaped targets
-    trainClassANN(topology, reshapedTrainingDataset; 
-        validationDataset=reshapedValidationDataset, 
-        testDataset=reshapedTestDataset, 
-        transferFunctions=transferFunctions, 
-        maxEpochs=maxEpochs, 
-        minLoss=minLoss, 
-        learningRate=learningRate, 
-        maxEpochsVal=maxEpochsVal, 
-        showText=showText);
+    trainClassANN(topology, reshapedTrainingDataset;
+        validationDataset=reshapedValidationDataset,
+        testDataset=reshapedTestDataset,
+        transferFunctions=transferFunctions,
+        maxEpochs=maxEpochs,
+        minLoss=minLoss,
+        learningRate=learningRate,
+        maxEpochsVal=maxEpochsVal,
+        showText=showText)
 
 end
 
 """ 3. CROSS VALIDATION TRAINING """
 
-function trainClassANN(topology::AbstractArray{<:Int,1}, 
-    trainingDataset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,2}}, 
-    kFoldIndices::Array{Int64,1}; 
-    transferFunctions::AbstractArray{<:Function,1}=fill(σ, length(topology)), 
-    maxEpochs::Int=1000, 
-    minLoss::Real=0.0, 
-    learningRate::Real=0.01, 
-    repetitionsTraining::Int=1, 
-    validationRatio::Real=0.0, 
-    maxEpochsVal::Int=20, 
-    metricsToSave::AbstractArray{<:String, 1}=["accuracy"], 
-    showText = false, 
-    showTextEpoch = false,
+function trainClassANN(topology::AbstractArray{<:Int,1},
+    trainingDataset::Tuple{AbstractArray{<:Real,2},AbstractArray{Bool,2}},
+    kFoldIndices::Array{Int64,1};
+    transferFunctions::AbstractArray{<:Function,1}=fill(σ, length(topology)),
+    maxEpochs::Int=1000,
+    minLoss::Real=0.0,
+    learningRate::Real=0.01,
+    repetitionsTraining::Int=1,
+    validationRatio::Real=0.0,
+    maxEpochsVal::Int=20,
+    metricsToSave::AbstractArray{<:String,1}=["accuracy"],
+    showText=false,
+    showTextEpoch=false,
     normalizationType::Symbol=:zeroMean)
     """
     This function trains a neural network with the specified parameters with the training dataset using k-fold cross-validation, receiving the inputs and targets as both real and boolean matrixes, respectively.
-    
+
     Parameters:
         - topology: Array with the number of neurons in each hidden layer.
         - trainingDataset: Tuple with the inputs and targets of the training dataset, both as real and boolean matrixes, respectively.
@@ -400,7 +400,7 @@ function trainClassANN(topology::AbstractArray{<:Int,1},
         - showText: A boolean to show the loss in the console.
         - showTextEpoch: A boolean to show the loss in the console in each epoch.
         - normalizationType: The type of normalization to apply to the data.
-    
+
     Returns:
         - mean_results: The mean of each metric for each fold.
         - std_results: The standard deviation of each metric for each fold.
@@ -409,7 +409,7 @@ function trainClassANN(topology::AbstractArray{<:Int,1},
     n_folds = maximum(kFoldIndices)
 
     # Create a dictionary to store each metric's evaluations
-    results_fold = Dict{String, AbstractArray{Float64, 1}}()
+    results_fold = Dict{String,AbstractArray{Float64,1}}()
 
     # Initialize each selected metric in the dictionary
     for metric in metricsToSave
@@ -422,14 +422,14 @@ function trainClassANN(topology::AbstractArray{<:Int,1},
             println("Fold ", i, ":")
         end
         # Here we will store the results for each metric on each repetition
-        results_iterations = Dict{String, AbstractArray{Float64, 1}}()
+        results_iterations = Dict{String,AbstractArray{Float64,1}}()
         for metric in metricsToSave
             results_iterations[metric] = zeros(Float64, repetitionsTraining)
         end
 
         # Get the training and test datasets for the current fold
-        trainingDatasetFold = (trainingDataset[1][kFoldIndices .!= i, :], trainingDataset[2][kFoldIndices .!= i, :])
-        testDatasetFold = (trainingDataset[1][kFoldIndices .== i, :], trainingDataset[2][kFoldIndices .== i, :])
+        trainingDatasetFold = (trainingDataset[1][kFoldIndices.!=i, :], trainingDataset[2][kFoldIndices.!=i, :])
+        testDatasetFold = (trainingDataset[1][kFoldIndices.==i, :], trainingDataset[2][kFoldIndices.==i, :])
 
         # If validationRatio is greater than 0, split the training dataset into training and validation
         if validationRatio > 0
@@ -439,10 +439,10 @@ function trainClassANN(topology::AbstractArray{<:Int,1},
             trainingDatasetFold = (trainingDatasetFold[1][train_indices, :], trainingDatasetFold[2][train_indices, :])
 
             # Normalize the data
-            normalizationParameters = calculateNormalizationParameters(trainingDatasetFold[1], normalizationType);
-            performNormalization!(trainingDatasetFold[1], normalizationParameters, normalizationType);
-            performNormalization!(validationDatasetFold[1], normalizationParameters, normalizationType);
-            performNormalization!(testDatasetFold[1], normalizationParameters, normalizationType);
+            normalizationParameters = calculateNormalizationParameters(trainingDatasetFold[1], normalizationType)
+            performNormalization!(trainingDatasetFold[1], normalizationParameters, normalizationType)
+            performNormalization!(validationDatasetFold[1], normalizationParameters, normalizationType)
+            performNormalization!(testDatasetFold[1], normalizationParameters, normalizationType)
 
             # Reduce dimension with pca
             pca = PCA(n_components=0.95)
@@ -464,20 +464,20 @@ function trainClassANN(topology::AbstractArray{<:Int,1},
                     end
                 end
             end
-        
-        # Otherwise, train the model without validation
+
+            # Otherwise, train the model without validation
         else
             # Normalize the data
-            normalizationParameters = calculateNormalizationParameters(trainingDatasetFold[1], normalizationType);
-            performNormalization!(trainingDatasetFold[1], normalizationParameters, normalizationType);
-            performNormalization!(testDatasetFold[1], normalizationParameters, normalizationType);
+            normalizationParameters = calculateNormalizationParameters(trainingDatasetFold[1], normalizationType)
+            performNormalization!(trainingDatasetFold[1], normalizationParameters, normalizationType)
+            performNormalization!(testDatasetFold[1], normalizationParameters, normalizationType)
 
             # Reduce dimension with pca
             pca = PCA(n_components=0.95)
             fit!(pca, trainingDatasetFold[1])
             pca.transform(trainingDatasetFold[1])
             pca.transform(testDatasetFold[1])
-            
+
             for j in 1:repetitionsTraining
                 (model, trainingLosses, validationLosses, testLosses, best_epoch) = trainClassANN(topology, trainingDatasetFold, testDataset=testDatasetFold, transferFunctions=transferFunctions, maxEpochs=maxEpochs, minLoss=minLoss, learningRate=learningRate, maxEpochsVal=maxEpochsVal, showText=showTextEpoch)
                 outputs = model(testDatasetFold[1]')'
@@ -508,8 +508,8 @@ function trainClassANN(topology::AbstractArray{<:Int,1},
     end
 
     # Return the mean of each metric for each fold
-    mean_results = Dict{String, Float64}()
-    std_results = Dict{String, Float64}()
+    mean_results = Dict{String,Float64}()
+    std_results = Dict{String,Float64}()
     for metric in metricsToSave
         mean_results[metric] = mean(results_fold[metric])
         std_results[metric] = std(results_fold[metric])
@@ -517,22 +517,22 @@ function trainClassANN(topology::AbstractArray{<:Int,1},
     end
 
     return mean_results, std_results
-    
+
 end
 
 function trainClassANN(topology::AbstractArray{<:Int,1},
-    trainingDataset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,1}},
-    kFoldIndices::	Array{Int64,1};
+    trainingDataset::Tuple{AbstractArray{<:Real,2},AbstractArray{Bool,1}},
+    kFoldIndices::Array{Int64,1};
     transferFunctions::AbstractArray{<:Function,1}=fill(σ, length(topology)),
-    maxEpochs::Int=1000, 
-    minLoss::Real=0.0, 
+    maxEpochs::Int=1000,
+    minLoss::Real=0.0,
     learningRate::Real=0.01,
-    repetitionsTraining::Int=1, 
-    validationRatio::Real=0.0, 
-    maxEpochsVal::Int=20, 
-    metricsToSave::AbstractArray{<:String, 1}=["accuracy"], 
-    showText = false,
-    showTextEpoch = false,
+    repetitionsTraining::Int=1,
+    validationRatio::Real=0.0,
+    maxEpochsVal::Int=20,
+    metricsToSave::AbstractArray{<:String,1}=["accuracy"],
+    showText=false,
+    showTextEpoch=false,
     normalizationType::Symbol=:zeroMean)
     """
     This function trains a neural network with the specified parameters with the training dataset using k-fold cross-validation, receiving the inputs as a real matrix and the targets as a boolean vector.
@@ -551,7 +551,7 @@ function trainClassANN(topology::AbstractArray{<:Int,1},
         - metricsToSave: Array with the metrics to save.
         - showText: A boolean to show the loss in the console.
         - normalizationType: The type of normalization to apply to the data.
-    
+
     Returns:
         - mean_results: The mean of each metric for each fold.
         - std_results: The standard deviation of each metric for each fold.
@@ -563,32 +563,33 @@ function trainClassANN(topology::AbstractArray{<:Int,1},
     reshapedTargets = reshape(trainingTargets, length(trainingTargets), 1)
 
     return trainclassANN(topology, (trainingInputs, reshapedTargets), kFoldIndices;
-    transferFunctions = transferFunctions,
-    maxEpochs = maxEpochs, 
-    minLoss = minLoss, 
-    learningRate = learningRate, 
-    repetitionsTraining = repetitionsTraining, 
-    validationRatio = validationRatio, 
-    maxEpochsVal = maxEpochsVal, 
-    metricsToSave = metricsToSave, 
-    showText = showText,
-    showTextEpoch = showTextEpoch,
-    normalizationType = normalizationType)
+        transferFunctions=transferFunctions,
+        maxEpochs=maxEpochs,
+        minLoss=minLoss,
+        learningRate=learningRate,
+        repetitionsTraining=repetitionsTraining,
+        validationRatio=validationRatio,
+        maxEpochsVal=maxEpochsVal,
+        metricsToSave=metricsToSave,
+        showText=showText,
+        showTextEpoch=showTextEpoch,
+        normalizationType=normalizationType)
 end
 
 function modelCrossValidation(
     modelType::Symbol,
     modelHyperparameters::Dict,
-    inputs::AbstractArray{<:Real, 2},
-    targets::AbstractArray{<:Any, 1},
-    crossValidationIndices::Array{Int64, 1};
-    metricsToSave::AbstractArray{<:Union{String, Symbol}, 1} = [:accuracy],
-    normalizationType::Symbol = :zeroMean,
-    applyPCA::Bool = false,
-    pcaThreshold::Float64 = 0.95)
+    inputs::AbstractArray{<:Real,2},
+    targets::AbstractArray{<:Any,1},
+    crossValidationIndices::Array{Int64,1};
+    metricsToSave::AbstractArray{<:Union{String,Symbol},1}=[:accuracy],
+    normalizationType::Symbol=:zeroMean,
+    applyPCA::Bool=false,
+    pcaThreshold::Float64=0.95,
+    verbose::Bool=false)
     """
     This function performs cross-validation for a given model with the specified hyperparameters, inputs, and targets.
-    
+
     Parameters:
         - modelType: The type of the model to train.
         - modelHyperparameters: The hyperparameters of the model.
@@ -598,21 +599,24 @@ function modelCrossValidation(
         - metricsToSave: The metrics to save.
         - showTextEpoch: A boolean to show the loss in the console in each epoch.
         - normalizationType: The type of normalization to apply to the data.
-    
+        - applyPCA: A boolean to apply PCA to the data.
+        - pcaThreshold: The threshold of the PCA.
+        - verbose: A boolean to show the loss in the console.
+
     Returns:
         - mean_results: The mean of each metric for each fold.
         - std_results: The standard deviation of each metric for each fold.
     """
-  
+
     # Get the number of folds
     n_folds = maximum(crossValidationIndices)
 
     # Get the number of classes
     numClasses = length(unique(targets))
-  
+
     # Create a dictionary to store each metric's evaluations
-    results_fold = Dict{Symbol, AbstractArray{Float64,1}}()
-    
+    results_fold = Dict{Symbol,AbstractArray{Float64,1}}()
+
     # Create a vector in which each element is a dictionary where the key is the metric and the value is an array with the metric values for each fold
     class_fold_results = [
         Dict(metric => rand(Float64, n_folds) for metric in metricsToSave) for _ in 1:numClasses
@@ -622,15 +626,15 @@ function modelCrossValidation(
     for metric in metricsToSave
         results_fold[metric] = zeros(Float64, n_folds)
     end
-  
+
     # Convert the targets to oneHot encoding for the ANN
     if modelType == :ANN
-      targets = oneHotEncoding(targets)
+        targets = oneHotEncoding(targets)
     end
-  
+
     # For each fold
     for i in 1:n_folds
-  
+
         if modelType == :ANN
             # Separate training and validation data for this fold
             trainIdx = findall(crossValidationIndices .!= i)
@@ -642,7 +646,7 @@ function modelCrossValidation(
 
             # Check mandatory hyperparameters
             topology = modelHyperparameters["topology"]
-  
+
             # Check the optional hyperparameters
             repetitionsTraining = get(modelHyperparameters, "repetitionsTraining", 1)
             validationRatio = get(modelHyperparameters, "validationRatio", 0)
@@ -651,9 +655,9 @@ function modelCrossValidation(
             learningRate = get(modelHyperparameters, "learningRate", nothing)
             maxEpochsVal = get(modelHyperparameters, "maxEpochsVal", nothing)
             transferFunctions = get(modelHyperparameters, "transferFunctions", fill(σ, length(topology)))
-            
+
             # Here we will store the results for each metric on each repetition
-            results_iterations = Dict{Symbol, AbstractArray{Float64,1}}()
+            results_iterations = Dict{Symbol,AbstractArray{Float64,1}}()
 
             # Initialize each selected metric in the dictionary
             for metric in metricsToSave
@@ -664,7 +668,7 @@ function modelCrossValidation(
             class_iterations_results = [
                 Dict(metric => rand(Float64, repetitionsTraining) for metric in metricsToSave) for _ in 1:numClasses
             ]
-  
+
             if validationRatio > 0
                 train_indices, val_indices = holdOut(size(trainingDatasetFold[1], 1), validationRatio)
                 validationDatasetFold = (trainingDatasetFold[1][val_indices, :], trainingDatasetFold[2][val_indices, :])
@@ -713,18 +717,18 @@ function modelCrossValidation(
                 end
                 outputs = model(testDatasetFold[1]')'
                 metrics, classes_results = confusionMatrix(outputs, testDatasetFold[2])
-                
+
                 for class in 1:numClasses
                     for metric in metricsToSave
                         class_iterations_results[class][metric][j] = classes_results[class][metric]
                     end
                 end
-                
+
                 for metric in metricsToSave
                     results_iterations[metric][j] = metrics[metric]
                 end
             end
-  
+
         else
             # Get the training and test datasets
             trainingDatasetFold = (inputs[crossValidationIndices.!=i, :], targets[crossValidationIndices.!=i])
@@ -762,51 +766,62 @@ function modelCrossValidation(
                 error("Model type: $modelType not supported.")
             end
             fit!(model, trainingDatasetFold[1], trainingDatasetFold[2])
-  
+
             # Make predictions
             outputs = predict(model, testDatasetFold[1])
-  
+
             # Calculate metrics
             metrics, classes_results = confusionMatrix(outputs, testDatasetFold[2])
         end
 
-        println("Mean results for fold ", i, ":")
+        if verbose
+            println("Mean results for fold ", i, ":")
+        end
         for metric in metricsToSave
             if modelType == :ANN
                 results_fold[metric][i] = mean(results_iterations[metric])
-                println("\t$metric: ", results_fold[metric][i])
+                if verbose
+                    println("\t$metric: ", round(results_fold[metric][i], digits=5))
+                end
                 for class in 1:numClasses
-                    println("\t\tClass ", class, ": ", mean(class_iterations_results[class][metric]))
-                    class_fold_results[class][metric][i] = mean(class_iterations_results[class][metric])
+                    mean_results = mean(class_iterations_results[class][metric])
+                    if verbose
+                        println("\t\tClass ", class, ": ", round(mean_results, digits=5))
+                    end
+                    class_fold_results[class][metric][i] = mean_results
                 end
             else
                 results_fold[metric][i] = metrics[metric]
-                println("\t$metric: ", results_fold[metric][i])
+                if verbose
+                    println("\t$metric: ", round(results_fold[metric][i], digits=5))
+                end
                 for class in 1:numClasses
-                    println("\t\tClass ", class, ": ", classes_results[class][metric])
+                    if verbose
+                        println("\t\tClass ", class, ": ", round(classes_results[class][metric], digits=5))
+                    end
                     class_fold_results[class][metric][i] = classes_results[class][metric]
                 end
             end
         end
     end
-  
+
     # Return the mean of each metric for each fold
-    mean_results = Dict{Symbol, Float64}()
-    std_results = Dict{Symbol, Float64}()
+    mean_results = Dict{Symbol,Float64}()
+    std_results = Dict{Symbol,Float64}()
 
     for metric in metricsToSave
         mean_results[metric] = mean(results_fold[metric])
         std_results[metric] = std(results_fold[metric])
-        println("Mean $metric: ", mean_results[metric], " ± ", std_results[metric])
+        println("Mean $metric: ", round(mean_results[metric], digits=5), " ± ", round(std_results[metric], digits=5))
         for class in 1:numClasses
             mean_class = mean(class_fold_results[class][metric])
             std_class = std(class_fold_results[class][metric])
-            println("\tClass ", class, ": ", mean_class, " ± ", std_class)
-        end   
+            println("\tClass ", class, ": ", round(mean_class, digits=5), " ± ", round(std_class, digits=5))
+        end
     end
-  
+
     return results_fold, class_fold_results
-  
+
 end
 
 """ 4. ENSEMBLE """
@@ -819,12 +834,12 @@ function get_base_model(model_symbol, modelHyperParameters, index)
         - model_symbol: The symbol of the model to train.
         - modelHyperParameters: The hyperparameters of the model.
         - index: The index of the model.
-    
+
     Returns:
         - name: The name of the model.
         - model: The model with the specified hyperparameters.
     """
-    
+
     if model_symbol == :DT
         name = "DT$index"
         return name, DecisionTreeClassifier(; modelHyperParameters...)
@@ -856,7 +871,7 @@ end
 function update_metrics!(predictions, targets, metricsToSave, results_fold, i, showText)
     """
     This function updates the metrics of the current fold.
-    
+
     Parameters:
         - predictions: The predictions of the model.
         - targets: The targets of the dataset.
@@ -864,7 +879,7 @@ function update_metrics!(predictions, targets, metricsToSave, results_fold, i, s
         - (!)results_fold: The results of the current fold. This is a mutable variable.
         - i: The index of the current fold.
         - showText: A boolean to show the loss in the console.
-    
+
     Returns:
         - results_fold: The results adding the one of the current fold.
     """
@@ -885,13 +900,13 @@ end
 function get_ensemble_model(ensemble_symbol, ensembleHyperParameters, estimators, modelsHyperParameters)
     """
     This function returns an ensemble model with the specified hyperparameters.
-    
+
     Parameters:
         - ensemble_symbol: The symbol of the ensemble model to train.
         - ensembleHyperParameters: The hyperparameters of the ensemble model.
         - estimators: The estimators of the ensemble model.
         - modelsHyperParameters: The hyperparameters of the base models.
-    
+
     Returns:
         - ensemble: The ensemble model with the specified hyperparameters.
     """
@@ -927,13 +942,13 @@ function get_ensemble_model(ensemble_symbol, ensembleHyperParameters, estimators
 end
 
 function trainClassEnsemble(
-    estimators::AbstractArray{Symbol, 1},
+    estimators::AbstractArray{Symbol,1},
     modelsHyperParameters::Vector{Dict},
-    trainingDataset::Tuple{AbstractArray{<:Real,2}, AbstractArray{<:Any, 1}},
-    kFoldIndices::Array{Int64, 1};
+    trainingDataset::Tuple{AbstractArray{<:Real,2},AbstractArray{<:Any,1}},
+    kFoldIndices::Array{Int64,1};
     ensembleType::Symbol=:Voting,
     ensembleHyperParameters::Dict=Dict(),
-    metricsToSave::AbstractArray{Symbol, 1}=["accuracy"],
+    metricsToSave::AbstractArray{Symbol,1}=["accuracy"],
     showText::Bool=false,
     normalizationType::Symbol=:zeroMean,
     applyPCA::Bool=false,
@@ -941,7 +956,7 @@ function trainClassEnsemble(
 )
     """
     This function trains an ensemble model with the specified parameters with the training dataset using k-fold cross-validation, receiving the inputs and targets as both real and boolean matrices, respectively.
-    
+
     Parameters:
         - estimators: The estimators of the ensemble model.
         - modelsHyperParameters: The hyperparameters of the base models.
@@ -954,11 +969,11 @@ function trainClassEnsemble(
         - normalizationType: The type of normalization to apply to the data.
         - applyPCA: Whether to apply PCA for dimensionality reduction.
         - pcaThreshold: The PCA variance threshold for dimensionality reduction.
-    
+
     Returns:
         - results_fold: A dictionary with the results of each fold for each metric.
     """
-    
+
     # Check if the ensemble type is allowed
     ensembles_allowed = [:Voting, :Stacking, :Bagging, :AdaBoost, :GradientBoosting]
     if !(ensembleType in ensembles_allowed)
@@ -1009,7 +1024,7 @@ function trainClassEnsemble(
 
         # Create the ensemble model
         ensemble = get_ensemble_model(ensembleType, ensembleHyperParameters, estimators, modelsHyperParameters)
-        
+
         # Train the ensemble
         fit!(ensemble, trainingDatasetFold[1], trainingDatasetFold[2])
 
@@ -1026,24 +1041,24 @@ function trainClassEnsemble(
     for metric in metricsToSave
         println("Mean $metric: ", mean(results_fold[metric]), " ± ", std(results_fold[metric]))
     end
-    
+
     return results_fold
 end
 
 
-function trainClassEnsemble(baseEstimator::Symbol, 
+function trainClassEnsemble(baseEstimator::Symbol,
     modelsHyperParameters::Dict,
-    trainingDataset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,2}},     
+    trainingDataset::Tuple{AbstractArray{<:Real,2},AbstractArray{Bool,2}},
     kFoldIndices::Array{Int64,1},
     NumEstimators::Int=100,
     ensembleType::Symbol=:Voting,
     ensembleHyperParameters::Dict=Dict(),
     metricsToSave::AbstractArray{<:String,1}=["accuracy"],
-    showText::Bool = false,
+    showText::Bool=false,
     normalizationType::Symbol=:zeroMean)
     """
     This function trains an ensemble model with the same base model using k-fold cross-validation, receiving the inputs and targets as both real and boolean matrixes, respectively.
-    
+
     Parameters:
         - baseEstimator: The base estimator of the ensemble model.
         - modelsHyperParameters: The hyperparameters of the base model.
@@ -1054,20 +1069,20 @@ function trainClassEnsemble(baseEstimator::Symbol,
         - ensembleHyperParameters: The hyperparameters of the ensemble model.
         - metricsToSave: The metrics to save.
         - showText: A boolean to show the loss in the console.
-    
+
     Returns:
         - results_fold: A list with the results of each fold.
     """
-    
+
     if ensembleType in [:Voting, :Stacking]
-        estimators = [baseEstimator for i in 1:NumEstimators];
-        modelsHyperParameters = Vector{Dict}([modelsHyperParameters for i in 1:NumEstimators]);
+        estimators = [baseEstimator for i in 1:NumEstimators]
+        modelsHyperParameters = Vector{Dict}([modelsHyperParameters for i in 1:NumEstimators])
         return trainClassEnsemble(estimators, modelsHyperParameters, trainingDataset, kFoldIndices, ensembleType, ensembleHyperParameters, metricsToSave, showText, normalizationType)
     else
-        estimators = [baseEstimator];
-        modelsHyperParameters = Vector{Dict}([modelsHyperParameters]);
-        ensembleHyperParameters[:n_estimators] = NumEstimators;
+        estimators = [baseEstimator]
+        modelsHyperParameters = Vector{Dict}([modelsHyperParameters])
+        ensembleHyperParameters[:n_estimators] = NumEstimators
         return trainClassEnsemble(estimators, modelsHyperParameters, trainingDataset, kFoldIndices, ensembleType, ensembleHyperParameters, metricsToSave, showText, normalizationType)
     end
-    
+
 end
