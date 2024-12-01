@@ -845,7 +845,6 @@ function modelCrossValidation(
         end
     end
 
-    # Return the mean of each metric for each fold
     mean_results = Dict{Symbol,Float64}()
     std_results = Dict{Symbol,Float64}()
 
@@ -907,7 +906,7 @@ function get_base_model(model_symbol, modelHyperParameters, index)
     end
 end
 
-function update_metrics!(predictions, targets, metricsToSave, results_fold, i, class_fold_results, numClasses, verbose)
+function update_metrics!(predictions, targets, metricsToSave, results, i, classes_results, numClasses, verbose)
     """
     This function updates the metrics of the current fold.
 
@@ -927,20 +926,20 @@ function update_metrics!(predictions, targets, metricsToSave, results_fold, i, c
     # end
     # println(predictions)
     # println(targets)
-    metrics, classes_results = confusionMatrix(predictions, targets)
+    metrics, cr = confusionMatrix(predictions, targets)
     if verbose
-        println("Metrics for fold ", i, ":")
+        println("Metrics for ", i, ":")
     end
     for metric in metricsToSave
-        results_fold[metric][i] = metrics[metric]
+        results[metric][i] = metrics[metric]
         if verbose
-            println("\t$metric: ", round(results_fold[metric][i], digits=5))
+            println("\t$metric: ", round(results[metric][i], digits=5))
         end
         for class in 1:numClasses
             if verbose
-                println("\t\tClass ", class, ": ", round(classes_results[class][metric], digits=5))
+                println("\t\tClass ", class, ": ", round(cr[class][metric], digits=5))
             end
-            class_fold_results[class][metric][i] = classes_results[class][metric]
+            classes_results[class][metric][i] = cr[class][metric]
         end
     end
 end
@@ -1076,18 +1075,43 @@ function trainClassEnsemble(
                 testDatasetFold[2]
             )
         end
-            
-        # Create the ensemble model
-        ensemble = get_ensemble_model(ensembleType, ensembleHyperParameters, estimators, modelsHyperParameters);
-            
-        # Train the ensemble
-        fit!(ensemble, trainingDatasetFold[1], trainingDatasetFold[2])
-            
-        # Predict on the test set
-        predictions = ensemble.predict(testDatasetFold[1])
-            
-        # Update metrics
-        update_metrics!(predictions, testDatasetFold[2], metricsToSave, results_fold, i, class_fold_results, numClasses, verbose)
+        
+        results_repetitions = Dict{Symbol,AbstractArray{Float64,1}}()
+        for metric in metricsToSave
+            results_repetitions[metric] = zeros(Float64, repetitionsTraining)
+        end
+
+        class_results_repetitions = [
+            Dict(metric => rand(Float64, repetitionsTraining) for metric in metricsToSave) for _ in 1:numClasses
+        ]
+        for rep in 1:repetitionsTraining
+            # Create the ensemble model
+            ensemble = get_ensemble_model(ensembleType, ensembleHyperParameters, estimators, modelsHyperParameters);
+                
+            # Train the ensemble
+            fit!(ensemble, trainingDatasetFold[1], trainingDatasetFold[2])
+                
+            # Predict on the test set
+            predictions = ensemble.predict(testDatasetFold[1])
+
+            update_metrics!(predictions, testDatasetFold[2], metricsToSave, results_repetitions, rep, class_results_repetitions, numClasses, false)
+        end
+        
+        if verbose
+            println("Mean results for fold ", i, ":")
+        end
+        for metric in metricsToSave
+            results_fold[metric][i] = mean(results_repetitions[metric])
+            if verbose
+                println("\t$metric: ", round(results_fold[metric][i], digits=5))
+            end
+            for class in 1:numClasses
+                class_fold_results[class][metric][i] = mean(class_results_repetitions[class][metric])
+                if verbose
+                    println("\t\tClass ", class, ": ", round(class_fold_results[class][metric][i], digits=5))
+                end
+            end
+        end
     end
 
     # Return the mean of each metric for each fold
