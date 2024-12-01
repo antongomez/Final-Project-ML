@@ -15,7 +15,8 @@ function plotTraining(train_loss::AbstractVector{<:Real};
     model_label::String="Model",
     line_type::Symbol=:solid,
     show::Bool=true,
-    size::Tuple{Int,Int}=(800, 600))
+    size::Tuple{Int,Int}=(800, 600),
+    ylim::Tuple{<:Real,<:Real}=(0.0, 1.0))
     """
     This function plots the training loss, validation loss, and test loss (if provided) in a single plot.
     
@@ -30,6 +31,7 @@ function plotTraining(train_loss::AbstractVector{<:Real};
         - line_type: The line type of the plot.
         - show: Whether to display the plot.
         - size: The size of the plot.
+        - ylim: Tuple specifying the y-axis limits (default is (0.0, 1.0)).
     
     Returns:
         - The plot object in order to add more plots to it if desired or to display it later.
@@ -45,24 +47,25 @@ function plotTraining(train_loss::AbstractVector{<:Real};
             title=title,
             color=:red,
             label="Train from $model_label",
-            size=size)
+            size=size,
+            ylim=ylim)
     else
-        plot!(g, epochs, train_loss, color=:red, label="Train from $model_label", linestyle=line_type)
+        plot!(g, epochs, train_loss, color=:red, label="Train from $model_label", linestyle=line_type, ylim=ylim)
     end
 
     # Add the validation loss if provided
     if val_loss !== nothing
         @assert(length(epochs) == length(val_loss))
-        plot!(g, epochs, val_loss, color=:blue, label="Validation from $model_label", linestyle=line_type)
+        plot!(g, epochs, val_loss, color=:blue, label="Validation from $model_label", linestyle=line_type, ylim=ylim)
         if best_epoch != nothing
-            scatter!([best_epoch], [val_loss[best_epoch+1]], color=:red, label="Best epoch for $model_label")
+            scatter!([best_epoch], [val_loss[best_epoch+1]], color=:red, label="Best epoch for $model_label", ylim=ylim)
         end
     end
 
     # Add the test loss if provided
     if test_loss !== nothing
         @assert(length(epochs) == length(test_loss))
-        plot!(g, epochs, test_loss, color=:green, label="Test from $model_label", linestyle=line_type)
+        plot!(g, epochs, test_loss, color=:green, label="Test from $model_label", linestyle=line_type, ylim=ylim)
     end
 
     if show
@@ -99,7 +102,8 @@ function plotMetricsPerAlgorithm(
     loaded_obj::Dict{Symbol, Dict{String, Any}}; 
     output_dir::String = "./plots/",
     metrics::Vector{Symbol} = [:accuracy, :precision, :recall, :f1_score],
-    size::Tuple{Int, Int} = (1200, 600)
+    size::Tuple{Int, Int} = (1200, 600),
+    ylim::Tuple{<:Real,<:Real}=(0.0, 1.0)
 )
     if !isdir(output_dir)
         mkdir(output_dir)
@@ -132,7 +136,8 @@ function plotMetricsPerAlgorithm(
                 legend=false,
                 grid=true,
                 xticks=(1:num_trained_models, param_labels),
-                size=size
+                size=size,
+                ylim=ylim
             )
             savefig(joinpath(save_folder, string(metric, "_performance_bar.png")))
 
@@ -150,7 +155,7 @@ function plotMetricsPerAlgorithm(
                 lw=2,
                 markershape=:circle,
                 size=size,
-                ylim=(0, 1)
+                ylim=ylim
             )
             savefig(joinpath(save_folder, string(metric, "_performance_line.png")))
             println("Saved plots for $(algorithm) and $(metric).")
@@ -238,13 +243,15 @@ function plotCombinedMetrics(
     metric_stds::Dict{Symbol, Vector{Any}};
     output_dir::String = "./plots/",
     size::Tuple{Int, Int} = (800, 600),
-    show::Bool = true
+    show::Bool = true,
+    ylim::Tuple{<:Real,<:Real}=(0.0, 1.0)
 )
     if !isdir(output_dir)
         mkdir(output_dir)
     end
 
     for metric in metrics
+        # Bar plot
         bar_plot = bar(
             model_names,
             metric_means[metric],
@@ -253,9 +260,11 @@ function plotCombinedMetrics(
             ylabel=string(metric, " (mean ± std)"),
             title="Comparison of Models based on $(metric)",
             legend=false,
-            grid=true
+            grid=true,
+            ylim=ylim
         )
 
+        # Line plot
         line_plot = plot(
             model_names,
             metric_means[metric],
@@ -265,9 +274,11 @@ function plotCombinedMetrics(
             title="Trends in $(metric) Across Models",
             label=string("Mean ", metric),
             lw=2,
-            grid=true
+            grid=true,
+            ylim=ylim
         )
 
+        # Combined plot
         combined_plot = plot(
             bar_plot,
             line_plot,
@@ -281,6 +292,7 @@ function plotCombinedMetrics(
         end
     end
 end
+
 
 function generateComparisonTable(
     model_names::Vector{Any},
