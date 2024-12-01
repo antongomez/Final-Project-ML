@@ -271,9 +271,9 @@ normalizationType::Symbol)
         - normalizationParameters: A tuple with the normalization parameters.
     """
 
-    if normalizationType == :minmax
+    if normalizationType == :minMax
         return calculateMinMaxNormalizationParameters(dataset);
-    elseif normalizationType == :zeromean
+    elseif normalizationType == :zeroMean
         return calculateZeroMeanNormalizationParameters(dataset);
     else
         error("Invalid normalization type. Please use :minmax or :zeromean.");
@@ -295,12 +295,12 @@ function performNormalization!(dataset::AbstractArray{<:Real,2},
         - dataset: A matrix with the normalized dataset.
     """
 
-    if normalizationType == :minmax
+    if normalizationType == :minMax
         return normalizeMinMax!(dataset, normalizationParameters);
-    elseif normalizationType == :zeromean
+    elseif normalizationType == :zeroMean
         return normalizeZeroMean!(dataset, normalizationParameters);
     else
-        error("Invalid normalization type. Please use :minmax or :zeromean.");
+        error("Invalid normalization type. Please use :minMax or :zeroMean.");
     end
 end
 

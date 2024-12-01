@@ -619,7 +619,7 @@ function modelCrossValidation(
 
     # Create a vector in which each element is a dictionary where the key is the metric and the value is an array with the metric values for each fold
     class_fold_results = [
-        Dict(metric => rand(Float64, n_folds) for metric in metricsToSave) for _ in 1:numClasses
+        Dict(metric => zeros(Float64, n_folds) for metric in metricsToSave) for _ in 1:numClasses
     ]
 
     # Initialize each selected metric in the dictionary
@@ -857,7 +857,6 @@ function get_base_model(model_symbol, modelHyperParameters, index)
         return name, GaussianNB(; modelHyperParameters...)
     elseif model_symbol == :ANN
         name = "ANN$index"
-        println("Get base model", typeof(modelHyperParameters))
         modelHyperParameters[:validation_fraction] = get(modelHyperParameters, :validation_fraction, 0)
         if modelHyperParameters[:validation_fraction] == 0
             modelHyperParameters[:early_stopping] = true
@@ -868,7 +867,7 @@ function get_base_model(model_symbol, modelHyperParameters, index)
     end
 end
 
-function update_metrics!(predictions, targets, metricsToSave, results_fold, i, showText)
+function update_metrics!(predictions, targets, metricsToSave, results_fold, i, class_fold_results, numClasses, verbose)
     """
     This function updates the metrics of the current fold.
 
@@ -888,11 +887,20 @@ function update_metrics!(predictions, targets, metricsToSave, results_fold, i, s
     # end
     # println(predictions)
     # println(targets)
-    metrics, _ = confusionMatrix(predictions, targets)
+    metrics, classes_results = confusionMatrix(predictions, targets)
+    if verbose
+        println("Metrics for fold ", i, ":")
+    end
     for metric in metricsToSave
         results_fold[metric][i] = metrics[metric]
-        if showText
-            println("\t", metric, ": ", results_fold[metric][i])
+        if verbose
+            println("\t$metric: ", round(results_fold[metric][i], digits=5))
+        end
+        for class in 1:numClasses
+            if verbose
+                println("\t\tClass ", class, ": ", round(classes_results[class][metric], digits=5))
+            end
+            class_fold_results[class][metric][i] = classes_results[class][metric]
         end
     end
 end
@@ -913,29 +921,29 @@ function get_ensemble_model(ensemble_symbol, ensembleHyperParameters, estimators
     if ensemble_symbol == :Voting
         base_models = []
         for (i, (modelType, modelHyperParameters)) in enumerate(zip(estimators, modelsHyperParameters))
-            modelName, model = get_base_model(modelType, modelHyperParameters, i)
+            modelName, model = get_base_model(modelType, modelHyperParameters, i);
             push!(base_models, (modelName, model))
         end
-        ensembleHyperParameters[:estimators] = base_models
-        return VotingClassifier(; ensembleHyperParameters...)
+        ensembleHyperParameters[:estimators] = base_models;
+        return VotingClassifier(; ensembleHyperParameters...);
     elseif ensemble_symbol == :Stacking
         base_models = []
         for (i, (modelType, modelHyperParameters)) in enumerate(zip(estimators, modelsHyperParameters))
-            modelName, model = get_base_model(modelType, modelHyperParameters, i)
+            modelName, model = get_base_model(modelType, modelHyperParameters, i);
             push!(base_models, (modelName, model))
         end
-        ensembleHyperParameters[:estimators] = base_models
-        return StackingClassifier(; ensembleHyperParameters...)
+        ensembleHyperParameters[:estimators] = base_models;
+        return StackingClassifier(; ensembleHyperParameters...);
     elseif ensemble_symbol == :Bagging
-        base_estimator = get_base_model(estimators[1], modelsHyperParameters[1], 1)[2]
-        ensembleHyperParameters[:base_estimator] = base_estimator
-        return BaggingClassifier(; ensembleHyperParameters...)
+        base_estimator = get_base_model(estimators[1], modelsHyperParameters[1], 1)[2];
+        ensembleHyperParameters[:base_estimator] = base_estimator;
+        return BaggingClassifier(; ensembleHyperParameters...);
     elseif ensemble_symbol == :AdaBoost
-        base_estimator = get_base_model(estimators[1], modelsHyperParameters[1], 1)[2]
-        ensembleHyperParameters[:base_estimator] = base_estimator
-        return AdaBoostClassifier(; ensembleHyperParameters...)
+        base_estimator = get_base_model(estimators[1], modelsHyperParameters[1], 1)[2];
+        ensembleHyperParameters[:base_estimator] = base_estimator;
+        return AdaBoostClassifier(; ensembleHyperParameters...);
     elseif ensemble_symbol == :GradientBoosting
-        return GradientBoostingClassifier(; ensembleHyperParameters...)
+        return GradientBoostingClassifier(; ensembleHyperParameters...);
     else
         error("Ensemble model not allowed. Choose one of the following: [:Voting, :Stacking, :Bagging, :AdaBoost, :GradientBoosting]")
     end
@@ -949,7 +957,7 @@ function trainClassEnsemble(
     ensembleType::Symbol=:Voting,
     ensembleHyperParameters::Dict=Dict(),
     metricsToSave::AbstractArray{Symbol,1}=["accuracy"],
-    showText::Bool=false,
+    verbose::Bool=false,
     normalizationType::Symbol=:zeroMean,
     applyPCA::Bool=false,
     pcaThreshold::Float64=0.95
@@ -985,6 +993,9 @@ function trainClassEnsemble(
 
     # Get the number of folds
     n_folds = maximum(kFoldIndices)
+    
+    # Get the number of classes
+    numClasses = length(unique(targets))
 
     # Initialize dictionary to store results of each metric
     results_fold = Dict{Symbol,AbstractArray{Float64,1}}()
@@ -992,22 +1003,24 @@ function trainClassEnsemble(
         results_fold[metric] = zeros(Float64, n_folds)
     end
 
+    # Create a vector in which each element is a dictionary where the key is the metric and the value is an array with the metric values for each fold
+    class_fold_results = [
+        Dict(metric => rand(Float64, n_folds) for metric in metricsToSave) for _ in 1:numClasses
+    ]
+
     for i in 1:n_folds
-        if showText
-            println("Fold ", i, ":")
-        end
 
         # Split the dataset into training and test according to the fold
         trainIdx = findall(kFoldIndices .!= i)
         testIdx = findall(kFoldIndices .== i)
         trainingDatasetFold = (inputs[trainIdx, :], targets[trainIdx])
         testDatasetFold = (inputs[testIdx, :], targets[testIdx])
-
+        
         # Normalize the datasets
         normalizationParameters = calculateNormalizationParameters(trainingDatasetFold[1], normalizationType)
-        performNormalization!(trainingDatasetFold[1], normalizationParameters, normalizationType)
-        performNormalization!(testDatasetFold[1], normalizationParameters, normalizationType)
-
+        performNormalization!(trainingDatasetFold[1], normalizationParameters, normalizationType);
+        performNormalization!(testDatasetFold[1], normalizationParameters, normalizationType);
+        
         # Apply PCA if specified
         if applyPCA
             pca = PCA(n_components=pcaThreshold)
@@ -1021,28 +1034,38 @@ function trainClassEnsemble(
                 testDatasetFold[2]
             )
         end
-
+        
         # Create the ensemble model
-        ensemble = get_ensemble_model(ensembleType, ensembleHyperParameters, estimators, modelsHyperParameters)
-
+        ensemble = get_ensemble_model(ensembleType, ensembleHyperParameters, estimators, modelsHyperParameters);
+        
         # Train the ensemble
         fit!(ensemble, trainingDatasetFold[1], trainingDatasetFold[2])
-
+        
         # Predict on the test set
         predictions = ensemble.predict(testDatasetFold[1])
-
+        
         # Update metrics
         #test_output_onehot = oneHotEncoding(testDatasetFold[2])
         #println(typeof(test_output_onehot))
-        update_metrics!(predictions, testDatasetFold[2], metricsToSave, results_fold, i, showText)
+        update_metrics!(predictions, testDatasetFold[2], metricsToSave, results_fold, i, class_fold_results, numClasses, verbose)
     end
 
-    # Print mean and std for each metric
+    # Return the mean of each metric for each fold
+    mean_results = Dict{Symbol,Float64}()
+    std_results = Dict{Symbol,Float64}()
+    # Print final results
     for metric in metricsToSave
-        println("Mean $metric: ", mean(results_fold[metric]), " ± ", std(results_fold[metric]))
+        mean_results[metric] = mean(results_fold[metric])
+        std_results[metric] = std(results_fold[metric])
+        println("Mean $metric: ", round(mean_results[metric], digits=5), " ± ", round(std_results[metric], digits=5))
+        for class in 1:numClasses
+            mean_class = mean(class_fold_results[class][metric])
+            std_class = std(class_fold_results[class][metric])
+            println("\tClass ", class, ": ", round(mean_class, digits=5), " ± ", round(std_class, digits=5))
+        end
     end
 
-    return results_fold
+    return results_fold, class_fold_results
 end
 
 
@@ -1054,7 +1077,7 @@ function trainClassEnsemble(baseEstimator::Symbol,
     ensembleType::Symbol=:Voting,
     ensembleHyperParameters::Dict=Dict(),
     metricsToSave::AbstractArray{<:String,1}=["accuracy"],
-    showText::Bool=false,
+    verbose::Bool=false,
     normalizationType::Symbol=:zeroMean)
     """
     This function trains an ensemble model with the same base model using k-fold cross-validation, receiving the inputs and targets as both real and boolean matrixes, respectively.
@@ -1077,12 +1100,12 @@ function trainClassEnsemble(baseEstimator::Symbol,
     if ensembleType in [:Voting, :Stacking]
         estimators = [baseEstimator for i in 1:NumEstimators]
         modelsHyperParameters = Vector{Dict}([modelsHyperParameters for i in 1:NumEstimators])
-        return trainClassEnsemble(estimators, modelsHyperParameters, trainingDataset, kFoldIndices, ensembleType, ensembleHyperParameters, metricsToSave, showText, normalizationType)
+        return trainClassEnsemble(estimators, modelsHyperParameters, trainingDataset, kFoldIndices, ensembleType, ensembleHyperParameters, metricsToSave, verbose, normalizationType)
     else
         estimators = [baseEstimator]
         modelsHyperParameters = Vector{Dict}([modelsHyperParameters])
         ensembleHyperParameters[:n_estimators] = NumEstimators
-        return trainClassEnsemble(estimators, modelsHyperParameters, trainingDataset, kFoldIndices, ensembleType, ensembleHyperParameters, metricsToSave, showText, normalizationType)
+        return trainClassEnsemble(estimators, modelsHyperParameters, trainingDataset, kFoldIndices, ensembleType, ensembleHyperParameters, metricsToSave, verbose, normalizationType)
     end
 
 end
