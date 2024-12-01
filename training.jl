@@ -1000,7 +1000,8 @@ function trainClassEnsemble(
     verbose::Bool=false,
     normalizationType::Symbol=:zeroMean,
     applyPCA::Bool=false,
-    pcaComponents::Union{Float64, Int64}=10
+    pcaComponents::Union{Float64, Int64}=10,
+    repetitionsTraining::Int=1
 )
     """
     This function trains an ensemble model with the specified parameters with the training dataset using k-fold cross-validation, receiving the inputs and targets as both real and boolean matrices, respectively.
@@ -1037,6 +1038,7 @@ function trainClassEnsemble(
     # Get the number of classes
     numClasses = length(unique(targets))
 
+
     # Initialize dictionary to store results of each metric
     results_fold = Dict{Symbol,AbstractArray{Float64,1}}()
     for metric in metricsToSave
@@ -1055,12 +1057,12 @@ function trainClassEnsemble(
         testIdx = findall(kFoldIndices .== i)
         trainingDatasetFold = (inputs[trainIdx, :], targets[trainIdx])
         testDatasetFold = (inputs[testIdx, :], targets[testIdx])
-        
+            
         # Normalize the datasets
         normalizationParameters = calculateNormalizationParameters(trainingDatasetFold[1], normalizationType)
         performNormalization!(trainingDatasetFold[1], normalizationParameters, normalizationType);
         performNormalization!(testDatasetFold[1], normalizationParameters, normalizationType);
-        
+            
         # Apply PCA if specified
         if applyPCA
             pca = PCA(n_components=pcaComponents)
@@ -1074,19 +1076,17 @@ function trainClassEnsemble(
                 testDatasetFold[2]
             )
         end
-        
+            
         # Create the ensemble model
         ensemble = get_ensemble_model(ensembleType, ensembleHyperParameters, estimators, modelsHyperParameters);
-        
+            
         # Train the ensemble
         fit!(ensemble, trainingDatasetFold[1], trainingDatasetFold[2])
-        
+            
         # Predict on the test set
         predictions = ensemble.predict(testDatasetFold[1])
-        
+            
         # Update metrics
-        #test_output_onehot = oneHotEncoding(testDatasetFold[2])
-        #println(typeof(test_output_onehot))
         update_metrics!(predictions, testDatasetFold[2], metricsToSave, results_fold, i, class_fold_results, numClasses, verbose)
     end
 
