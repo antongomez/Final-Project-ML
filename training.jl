@@ -585,7 +585,7 @@ function modelCrossValidation(
     metricsToSave::AbstractArray{<:Union{String,Symbol},1}=[:accuracy],
     normalizationType::Symbol=:zeroMean,
     applyPCA::Bool=false,
-    pcaComponents::Float64=0.95,
+    pcaComponents::Union{Float64, Int64}=10,
     verbose::Bool=false)
     """
     This function performs cross-validation for a given model with the specified hyperparameters, inputs, and targets.
@@ -750,6 +750,12 @@ function modelCrossValidation(
             end
 
             if modelType == :scikit_ANN
+                # Get repetitions for training
+                repetitionsTraining = modelHyperparameters[:repetitionsTraining]
+
+                modelHyperparametersCopy = deepcopy(modelHyperparameters)
+                delete!(modelHyperparametersCopy, :repetitionsTraining)
+
                 # Here we will store the results for each metric on each repetition
                 results_iterations = Dict{Symbol,AbstractArray{Float64,1}}()
 
@@ -764,7 +770,7 @@ function modelCrossValidation(
                 ]
 
                 for i in 1:repetitionsTraining
-                    model = MLPClassifier(; modelHyperparameters...)
+                    model = MLPClassifier(; modelHyperparametersCopy...)
                     fit!(model, trainingDatasetFold[1], trainingDatasetFold[2])
 
                     # Make predictions
@@ -994,7 +1000,7 @@ function trainClassEnsemble(
     verbose::Bool=false,
     normalizationType::Symbol=:zeroMean,
     applyPCA::Bool=false,
-    pcaComponents::Int=10
+    pcaComponents::Union{Float64, Int64}=10
 )
     """
     This function trains an ensemble model with the specified parameters with the training dataset using k-fold cross-validation, receiving the inputs and targets as both real and boolean matrices, respectively.
@@ -1114,7 +1120,7 @@ function trainClassEnsemble(baseEstimator::Symbol,
     verbose::Bool=false,
     normalizationType::Symbol=:zeroMean,
     applyPCA::Bool=false,
-    pcaComponents::Int=10)
+    pcaComponents::Union{Float64, Int64}=10)
     """
     This function trains an ensemble model with the same base model using k-fold cross-validation, receiving the inputs and targets as both real and boolean matrixes, respectively.
 

@@ -101,6 +101,10 @@ function plotMetricsPerAlgorithm(
     metrics::Vector{Symbol} = [:accuracy, :precision, :recall, :f1_score],
     size::Tuple{Int, Int} = (1200, 600)
 )
+    if !isdir(output_dir)
+        mkdir(output_dir)
+    end
+    
     for (algorithm, results) in loaded_obj
         num_trained_models = results["num_trained_models"]
         general_results = results["general_results"]
@@ -236,6 +240,10 @@ function plotCombinedMetrics(
     size::Tuple{Int, Int} = (800, 600),
     show::Bool = true
 )
+    if !isdir(output_dir)
+        mkdir(output_dir)
+    end
+
     for metric in metrics
         bar_plot = bar(
             model_names,
