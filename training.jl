@@ -585,7 +585,7 @@ function modelCrossValidation(
     metricsToSave::AbstractArray{<:Union{String,Symbol},1}=[:accuracy],
     normalizationType::Symbol=:zeroMean,
     applyPCA::Bool=false,
-    pcaThreshold::Float64=0.95,
+    pcaComponents::Float64=0.95,
     verbose::Bool=false)
     """
     This function performs cross-validation for a given model with the specified hyperparameters, inputs, and targets.
@@ -600,7 +600,7 @@ function modelCrossValidation(
         - showTextEpoch: A boolean to show the loss in the console in each epoch.
         - normalizationType: The type of normalization to apply to the data.
         - applyPCA: A boolean to apply PCA to the data.
-        - pcaThreshold: The threshold of the PCA.
+        - pcaComponents: The threshold of the PCA.
         - verbose: A boolean to show the loss in the console.
 
     Returns:
@@ -682,7 +682,7 @@ function modelCrossValidation(
 
                 # Reduce dimension with pca
                 if applyPCA
-                    pca = PCA(n_components=pcaThreshold)
+                    pca = PCA(n_components=pcaComponents)
                     fit!(pca, trainingDatasetFold[1])
                     train_inputs = pca.transform(trainingDatasetFold[1])
                     validation_inputs = pca.transform(validationDatasetFold[1])
@@ -700,7 +700,7 @@ function modelCrossValidation(
 
                 # Reduce dimension with pca
                 if applyPCA
-                    pca = PCA(n_components=pcaThreshold)
+                    pca = PCA(n_components=pcaComponents)
                     fit!(pca, trainingDatasetFold[1])
                     train_inputs = pca.transform(trainingDatasetFold[1])
                     test_inputs = pca.transform(testDatasetFold[1])
@@ -728,7 +728,7 @@ function modelCrossValidation(
                     results_iterations[metric][j] = metrics[metric]
                 end
             end
-
+                
         else
             # Get the training and test datasets
             trainingDatasetFold = (inputs[crossValidationIndices.!=i, :], targets[crossValidationIndices.!=i])
@@ -741,7 +741,7 @@ function modelCrossValidation(
 
             # Reduce dimension with pca
             if applyPCA
-                pca = PCA(n_components=pcaThreshold)
+                pca = PCA(n_components=pcaComponents)
                 fit!(pca, trainingDatasetFold[1])
                 train_inputs = pca.transform(trainingDatasetFold[1])
                 test_inputs = pca.transform(testDatasetFold[1])
@@ -749,36 +749,70 @@ function modelCrossValidation(
                 testDatasetFold = (test_inputs, testDatasetFold[2])
             end
 
-            # Create the SVC model with the specified hyperparameters
-            if modelType == :SVC
-                model = SVC(; modelHyperparameters...)
-            elseif modelType == :DT
-                model = DecisionTreeClassifier(; modelHyperparameters...)
-            elseif modelType == :KNN
-                model = KNeighborsClassifier(; modelHyperparameters...)
-            elseif modelType == :scikit_ANN
-                model = MLPClassifier(; modelHyperparameters...)
-            elseif modelType == :LR
-                model = LogisticRegression(; modelHyperparameters...)
-            elseif modelType == :NB
-                model = GaussianNB(; modelHyperparameters...)
+            if modelType == :scikit_ANN
+                # Here we will store the results for each metric on each repetition
+                results_iterations = Dict{Symbol,AbstractArray{Float64,1}}()
+
+                # Initialize each selected metric in the dictionary
+                for metric in metricsToSave
+                    results_iterations[metric] = zeros(Float64, repetitionsTraining)
+                end
+
+                # Create a vector in which each element is a dictionary where the key is the metric and the value is an array with the metric values for each repetition
+                class_iterations_results = [
+                    Dict(metric => rand(Float64, repetitionsTraining) for metric in metricsToSave) for _ in 1:numClasses
+                ]
+
+                for i in 1:repetitionsTraining
+                    model = MLPClassifier(; modelHyperparameters...)
+                    fit!(model, trainingDatasetFold[1], trainingDatasetFold[2])
+
+                    # Make predictions
+                    outputs = predict(model, testDatasetFold[1])
+
+                    # Calculate metrics
+                    metrics, classes_results = confusionMatrix(outputs, testDatasetFold[2])
+
+                    for class in 1:numClasses
+                        for metric in metricsToSave
+                            class_iterations_results[class][metric][i] = classes_results[class][metric]
+                        end
+                    end
+
+                    for metric in metricsToSave
+                        results_iterations[metric][i] = metrics[metric]
+                    end
+                end
             else
-                error("Model type: $modelType not supported.")
+                if modelType == :SVC
+                    model = SVC(; modelHyperparameters...)
+                elseif modelType == :DT
+                    model = DecisionTreeClassifier(; modelHyperparameters...)
+                elseif modelType == :KNN
+                    model = KNeighborsClassifier(; modelHyperparameters...)
+                elseif modelType == :LR
+                    model = LogisticRegression(; modelHyperparameters...)
+                elseif modelType == :NB
+                    model = GaussianNB(; modelHyperparameters...)
+                else
+                    error("Model type: $modelType not supported.")
+                end
+
+                fit!(model, trainingDatasetFold[1], trainingDatasetFold[2])
+
+                # Make predictions
+                outputs = predict(model, testDatasetFold[1])
+
+                # Calculate metrics
+                metrics, classes_results = confusionMatrix(outputs, testDatasetFold[2])
             end
-            fit!(model, trainingDatasetFold[1], trainingDatasetFold[2])
-
-            # Make predictions
-            outputs = predict(model, testDatasetFold[1])
-
-            # Calculate metrics
-            metrics, classes_results = confusionMatrix(outputs, testDatasetFold[2])
         end
 
         if verbose
             println("Mean results for fold ", i, ":")
         end
         for metric in metricsToSave
-            if modelType == :ANN
+            if modelType == :ANN || modelType == :scikit_ANN
                 results_fold[metric][i] = mean(results_iterations[metric])
                 if verbose
                     println("\t$metric: ", round(results_fold[metric][i], digits=5))
@@ -960,7 +994,7 @@ function trainClassEnsemble(
     verbose::Bool=false,
     normalizationType::Symbol=:zeroMean,
     applyPCA::Bool=false,
-    pcaThreshold::Float64=0.95
+    pcaComponents::Int=10
 )
     """
     This function trains an ensemble model with the specified parameters with the training dataset using k-fold cross-validation, receiving the inputs and targets as both real and boolean matrices, respectively.
@@ -976,7 +1010,7 @@ function trainClassEnsemble(
         - showText: A boolean to show the loss in the console.
         - normalizationType: The type of normalization to apply to the data.
         - applyPCA: Whether to apply PCA for dimensionality reduction.
-        - pcaThreshold: The PCA variance threshold for dimensionality reduction.
+        - pcaComponents: The PCA variance threshold for dimensionality reduction.
 
     Returns:
         - results_fold: A dictionary with the results of each fold for each metric.
@@ -1023,7 +1057,7 @@ function trainClassEnsemble(
         
         # Apply PCA if specified
         if applyPCA
-            pca = PCA(n_components=pcaThreshold)
+            pca = PCA(n_components=pcaComponents)
             fit!(pca, trainingDatasetFold[1])
             trainingDatasetFold = (
                 pca.transform(trainingDatasetFold[1]),
@@ -1078,7 +1112,9 @@ function trainClassEnsemble(baseEstimator::Symbol,
     ensembleHyperParameters::Dict=Dict(),
     metricsToSave::AbstractArray{<:String,1}=["accuracy"],
     verbose::Bool=false,
-    normalizationType::Symbol=:zeroMean)
+    normalizationType::Symbol=:zeroMean,
+    applyPCA::Bool=false,
+    pcaComponents::Int=10)
     """
     This function trains an ensemble model with the same base model using k-fold cross-validation, receiving the inputs and targets as both real and boolean matrixes, respectively.
 
@@ -1100,12 +1136,12 @@ function trainClassEnsemble(baseEstimator::Symbol,
     if ensembleType in [:Voting, :Stacking]
         estimators = [baseEstimator for i in 1:NumEstimators]
         modelsHyperParameters = Vector{Dict}([modelsHyperParameters for i in 1:NumEstimators])
-        return trainClassEnsemble(estimators, modelsHyperParameters, trainingDataset, kFoldIndices, ensembleType, ensembleHyperParameters, metricsToSave, verbose, normalizationType)
+        return trainClassEnsemble(estimators, modelsHyperParameters, trainingDataset, kFoldIndices, ensembleType, ensembleHyperParameters, metricsToSave, verbose, normalizationType, applyPCA, pcaComponents)
     else
         estimators = [baseEstimator]
         modelsHyperParameters = Vector{Dict}([modelsHyperParameters])
         ensembleHyperParameters[:n_estimators] = NumEstimators
-        return trainClassEnsemble(estimators, modelsHyperParameters, trainingDataset, kFoldIndices, ensembleType, ensembleHyperParameters, metricsToSave, verbose, normalizationType)
+        return trainClassEnsemble(estimators, modelsHyperParameters, trainingDataset, kFoldIndices, ensembleType, ensembleHyperParameters, metricsToSave, verbose, normalizationType, applyPCA, pcaComponents)
     end
 
 end
