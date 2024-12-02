@@ -504,7 +504,7 @@ end
 
 function smote(inputs::AbstractArray{<:Real,2}, targets::AbstractArray{<:Any,1}, N_map::Dict{String,Int}, k::Int)
     """
-    Implementation of the SMOTE algorithm to oversampling the minority classes.
+    Implementation of the SMOTE algorithm to oversampling or undersampling the specified classes.
 
       - input: Matrix with the features.
       - targets: Vector with the target values.
@@ -522,19 +522,19 @@ function smote(inputs::AbstractArray{<:Real,2}, targets::AbstractArray{<:Any,1},
     balanced_inputs = inputs[no_resampling_targets_index, :]
     balanced_targets = targets[no_resampling_targets_index]
 
-    # Define a KNN model and fit it to the data
+    # Define a KNN model and
     model = KNeighborsClassifier(n_neighbors=k + 1, weights="uniform", metric="euclidean")
-    fit!(model, inputs, targets)
 
     # Process each minority class that requires oversampling
     for (class_name, N) in N_map
         # Filter the actual minority class
-        minority_samples = inputs[targets.==class_name, :]
-        T = size(minority_samples, 1)
+        class_samples = inputs[targets.==class_name, :]
+        T = size(class_samples, 1)
 
         if N < 100
-            minority_samples = minority_samples[sample(1:T, round(Int, N / 100 * T)), :]
-            T = size(minority_samples, 1)
+            # If the percentage is less than 100, we do a random undersampling
+            class_samples = class_samples[rand(1:T, round(Int, (N / 100) * T)), :]
+            T = size(class_samples, 1)
             N = 100
         end
 
@@ -542,7 +542,9 @@ function smote(inputs::AbstractArray{<:Real,2}, targets::AbstractArray{<:Any,1},
         num_synthetic = round(Int, (N / 100))
 
         # Extract the features
-        feature_matrix = Matrix(minority_samples)
+        feature_matrix = Matrix(class_samples)
+        # Fit the KNN model with the elements of the minority class
+        fit!(model, feature_matrix, fill(class_name, T))
         # Generate the k-nearest neighbors for each sample
         _, neighbor_indices = model.kneighbors(feature_matrix)
         # Exclude the first column, which is the sample itself
@@ -554,13 +556,13 @@ function smote(inputs::AbstractArray{<:Real,2}, targets::AbstractArray{<:Any,1},
         for i in 1:T
             # Choose 'num_synthetic' neighbors for the current sample
             neighbor_idx = rand(1:5, num_synthetic)
-            neighbors = minority_samples[neighbor_idx, :]
+            neighbors = class_samples[neighbor_idx, :]
             # Calculate the difference between the neighbors and the current sample
-            dif = neighbors .- minority_samples[1:1, :]
+            dif = neighbors .- class_samples[1:1, :]
             # Generate random gaps
             gaps = rand(num_synthetic)
             # Generate the synthetic samples
-            syntetic_samples[newindex+1:newindex+num_synthetic, :] = minority_samples[1:1, :] .+ gaps .* dif
+            syntetic_samples[newindex+1:newindex+num_synthetic, :] = class_samples[1:1, :] .+ gaps .* dif
             newindex += num_synthetic
         end
 
