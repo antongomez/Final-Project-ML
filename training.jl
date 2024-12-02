@@ -587,8 +587,8 @@ function modelCrossValidation(
     applyPCA::Bool=false,
     pcaComponents::Union{Float64,Int64}=10,
     applySmote::Bool=false,
+    smotePercentages::Dict{String,Int64}=Dict(),
     smoteNeighbors::Int64=5,
-    smotePercentage::Dict{String,Integer}=Dict(),
     verbose::Bool=false)
     """
     This function performs cross-validation for a given model with the specified hyperparameters, inputs, and targets.
@@ -605,8 +605,8 @@ function modelCrossValidation(
         - applyPCA: A boolean to apply PCA to the data.
         - pcaComponents: The threshold of the PCA.
         - applySmote: A boolean to apply SMOTE to the data.
+        - smotePercentages: The percentage of SMOTE to apply to each class.
         - smoteNeighbors: The number of neighbors to use in SMOTE.
-        - smotePercentage: The percentage of SMOTE to apply to each class.
         - verbose: A boolean to show the loss in the console.
 
     Returns:
