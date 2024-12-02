@@ -573,3 +573,28 @@ function smote(inputs::AbstractArray{<:Real,2}, targets::AbstractArray{<:Any,1},
 
     return balanced_inputs, balanced_targets
 end
+
+
+function smote(inputs::AbstractArray{<:Real,2}, targets::BitMatrix, target_labels::Vector{<:Any}, smote_percentage::Dict{<:Any,<:Integer}, k::Int)
+    """
+      Implementation of the SMOTE algorithm to oversampling or undersampling the specified classes.
+
+        - input: Matrix with the features.
+        - targets: Matrix with the one-hot encoded target values.
+        - target_labels: Vector with the unique target labels.
+        - n_percentages: Dictionary with the percentage of samples to generate for each minority class (100 corresponds to the original number of samples).
+        - k: Number of neighbors to consider for the SMOTE algorithm.
+
+      Returns:
+        - balanced_inputs: Matrix with the balanced features.
+        - balanced_targets: Vector with the balanced target values (one-hot encoded).
+      """
+    # Get a vector of the target labels
+    labels = [findfirst(row -> row == 1, targets[i, :]) for i in 1:size(targets, 1)]
+    labels = [target_labels[label] for label in labels]
+    # Apply smote
+    balanced_inputs, balanced_targets = smote(inputs, labels, smote_percentage, k)
+    # Encode the targets
+    balanced_targets = oneHotEncoding(balanced_targets)
+    return balanced_inputs, balanced_targets
+end

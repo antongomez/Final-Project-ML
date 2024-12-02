@@ -633,6 +633,9 @@ function modelCrossValidation(
         results_fold[metric] = zeros(Float64, n_folds)
     end
 
+    # Get the labels of the targets
+    target_labels = unique(targets)
+
     # Convert the targets to oneHot encoding for the ANN
     if modelType == :ANN
         targets = oneHotEncoding(targets)
@@ -700,7 +703,7 @@ function modelCrossValidation(
 
                 # Oversample the data with SMOTE
                 if applySmote
-                    balanced_inputs, balanced_targets = smote(train_inputs, trainingDatasetFold[2], smotePercentages, smoteNeighbors)
+                    balanced_inputs, balanced_targets = smote(trainingDatasetFold[1], trainingDatasetFold[2], target_labels, smotePercentages, smoteNeighbors)
                     trainingDatasetFold = (balanced_inputs, balanced_targets)
                 end
 
@@ -720,7 +723,7 @@ function modelCrossValidation(
                 end
 
                 if applySmote
-                    balanced_inputs, balanced_targets = smote(train_inputs, trainingDatasetFold[2], smotePercentages, smoteNeighbors)
+                    balanced_inputs, balanced_targets = smote(trainingDatasetFold[1], trainingDatasetFold[2], target_labels, smotePercentages, smoteNeighbors)
                     trainingDatasetFold = (balanced_inputs, balanced_targets)
                 end
             end
