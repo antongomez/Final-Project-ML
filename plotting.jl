@@ -83,6 +83,7 @@ function aggregateMetrics(
     model_names = []
     metric_means = Dict(metric => [] for metric in metrics)
     metric_stds = Dict(metric => [] for metric in metrics)
+    metric_maxes = Dict(metric => [] for metric in metrics)
 
     for (algorithm, results) in loaded_obj
         push!(model_names, string(algorithm))
@@ -92,15 +93,22 @@ function aggregateMetrics(
             if ensemble
                 push!(metric_means[metric], mean(general_results[metric]))
                 push!(metric_stds[metric], std(general_results[metric]))
+                
+                # Compute maximum across all ensemble results
+                push!(metric_maxes[metric], maximum(general_results[metric]))
             else
                 metric_values = [mean(general_result[metric]) for general_result in general_results]
                 push!(metric_means[metric], mean(metric_values))
                 push!(metric_stds[metric], std(metric_values))
+
+                # Compute maximum across all trained models
+                metric_values_max = [maximum(general_result[metric]) for general_result in general_results]
+                push!(metric_maxes[metric], maximum(metric_values_max))
             end
         end
     end
 
-    return model_names, metrics, metric_means, metric_stds
+    return model_names, metrics, metric_means, metric_stds, metric_maxes
 end
 
 
@@ -117,6 +125,9 @@ function aggregateMetrics(
     metric_means_class = [Dict(metric => [] for metric in metrics) for _ in 1:numClasses]
     metric_stds_class = [Dict(metric => [] for metric in metrics) for _ in 1:numClasses]
 
+    metric_maxes = Dict(metric => [] for metric in metrics)
+    metric_maxes_class = [Dict(metric => [] for metric in metrics) for _ in 1:numClasses]
+
     for (algorithm, results) in loaded_obj
         push!(model_names, string(algorithm))
         general_results = results["general_results"]
@@ -130,6 +141,14 @@ function aggregateMetrics(
                     push!(metric_means_class[i][metric], mean(class_results[i][metric]))
                     push!(metric_stds_class[i][metric], std(class_results[i][metric]))
                 end
+
+                # Compute maximum for general metrics
+                push!(metric_maxes[metric], maximum(general_results[metric]))
+
+                # Compute maximum for per-class metrics
+                for i in 1:numClasses
+                    push!(metric_maxes_class[i][metric], maximum(class_results[i][metric]))
+                end
             else
                 metric_values = [mean(general_result[metric]) for general_result in general_results]
                 push!(metric_means[metric], mean(metric_values))
@@ -139,11 +158,21 @@ function aggregateMetrics(
                     push!(metric_means_class[i][metric], mean(metric_values))
                     push!(metric_stds_class[i][metric], std(metric_values))
                 end
+
+                # Compute maximum for general metrics
+                metric_values_max = [maximum(general_result[metric]) for general_result in general_results]
+                push!(metric_maxes[metric], maximum(metric_values_max))
+
+                # Compute maximum for per-class metrics
+                for i in 1:numClasses
+                    metric_values_max = [maximum(result[i][metric]) for result in class_results]
+                    push!(metric_maxes_class[i][metric], maximum(metric_values_max))
+                end
             end
         end
     end
 
-    return model_names, metrics, metric_means, metric_stds, metric_means_class, metric_stds_class
+    return model_names, metrics, metric_means, metric_stds, metric_means_class, metric_stds_class, metric_maxes, metric_maxes_class
 end
 
 function plotMetricsPerAlgorithm(
@@ -327,10 +356,10 @@ function generateAlgorithmTables(
         for i in 1:num_trained_models
             try
                 push!(configurations, param_labels[i])
-                push!(accuracies, mean(general_results[i][:accuracy]))
-                push!(precisions, mean(general_results[i][:precision]))
-                push!(recalls, mean(general_results[i][:recall]))
-                push!(f1_scores, mean(general_results[i][:f1_score]))
+                push!(accuracies, maximum(general_results[i][:accuracy]))
+                push!(precisions, maximum(general_results[i][:precision]))
+                push!(recalls, maximum(general_results[i][:recall]))
+                push!(f1_scores, maximum(general_results[i][:f1_score]))
             catch e
                 println("Skipping configuration $(param_labels[i]) due to missing or invalid data.")
             end
@@ -511,7 +540,7 @@ function plotCombinedMetrics(
     end
 end
 
-function plotCombinedMetricsPerClass(
+function plotCombinedMetrics(
     model_names::Vector{Any},
     numClasses::Int64,
     metrics::Vector{Symbol},
@@ -584,19 +613,17 @@ end
 function generateComparisonTable(
     model_names::Vector{Any},
     metrics::Vector{Symbol},
-    metric_means::Dict{Symbol, Vector{Any}},
-    metric_stds::Dict{Symbol, Vector{Any}}; # Use `;` to define keyword arguments
+    metric_maxes::Dict{Symbol, Vector{Any}}; # Use `;` to define keyword arguments
     sort_by::Symbol = :Accuracy,
     rev::Bool = true
 )
     comparison_table = DataFrame(Model = model_names)
 
     for metric in metrics
-        comparison_table[!, string(metric)] = ["$(round(mean, digits=3)) ± $(round(std, digits=3))" for (mean, std) in zip(metric_means[metric], metric_stds[metric])]
+        comparison_table[!, string(metric)] = [round(max_val, digits=3) for max_val in metric_maxes[metric]]
     end
 
-    # Add a numeric column for sorting based on the specified metric
-    sort_column = map(x -> parse(Float64, split(x, " ± ")[1]), comparison_table[!, string(sort_by)])
+    sort_column = comparison_table[!, string(sort_by)]
     comparison_table[!, "Sort_By"] = sort_column
 
     # Sort the table
@@ -605,17 +632,18 @@ function generateComparisonTable(
     # Remove the sorting column before displaying
     select!(sorted_table, Not("Sort_By"))
 
-    # Print the table
-    println("\nComparison of Metrics Across Models (Sorted by $(string(sort_by))):")
+    # Display the table
+    println("\nComparison of Maximum Metrics Across Models (Sorted by $(string(sort_by))):")
     pretty_table(sorted_table, header=["Model", "Accuracy", "Precision", "Recall", "F1-Score"])
+
+    # return sorted_table
 end
 
 function generateComparisonTable(
     model_names::Vector{Any},
     numClasses::Int64,
     metrics::Vector{Symbol},
-    metric_means_class::Vector{Dict{Symbol, Vector{Any}}},
-    metric_stds_class::Vector{Dict{Symbol, Vector{Any}}}; # Use `;` to define keyword arguments
+    metric_maxes_class::Vector{Dict{Symbol, Vector{Any}}}; # Use `;` to define keyword arguments
     sort_by::Symbol = :Accuracy,
     rev::Bool = true
 )
@@ -624,11 +652,11 @@ function generateComparisonTable(
         comparison_table = DataFrame(Model = model_names)
 
         for metric in metrics
-            comparison_table[!, string(metric, "_Class_", i)] = ["$(round(mean, digits=3)) ± $(round(std, digits=3))" for (mean, std) in zip(metric_means_class[i][metric], metric_stds_class[i][metric])]
+            comparison_table[!, string(metric, "_Class_", i)] = [round(max_val, digits=3) for max_val in metric_maxes_class[i][metric]]
         end
 
         # Add a numeric column for sorting based on the specified metric
-        sort_column = map(x -> parse(Float64, split(x, " ± ")[1]), comparison_table[!, string(sort_by, "_Class_", i)])
+        sort_column = comparison_table[!, string(sort_by, "_Class_", i)]
         comparison_table[!, "Sort_By_Class_$(i)"] = sort_column
 
         # Sort the table
@@ -638,7 +666,7 @@ function generateComparisonTable(
         select!(sorted_table, Not("Sort_By_Class_$(i)"))
 
         # Print the table
-        println("\nComparison of Metrics Across Models for Class $(i) (Sorted by $(string(sort_by))):")
+        println("\nComparison of Maximum Metrics Across Models for Class $(i) (Sorted by $(string(sort_by))):")
         pretty_table(sorted_table, header=["Model", "Accuracy", "Precision", "Recall", "F1-Score"])
     end
 end
