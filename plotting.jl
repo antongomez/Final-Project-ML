@@ -106,7 +106,7 @@ function aggregateMetrics(
                 push!(metric_means[metric], mean(metric_values))
                 push!(metric_stds[metric], std(metric_values))
                 for i in 1:numClasses
-                    metric_values = [mean(class_result[metric]) for class_result in class_results]
+                    metric_values = [mean(result[i][metric]) for result in class_results]
                     push!(metric_means_class[i][metric], mean(metric_values))
                     push!(metric_stds_class[i][metric], std(metric_values))
                 end
@@ -209,8 +209,8 @@ function plotMetricsPerClassAlgorithm(
 
         for i in 1:numClasses
             for metric in metrics
-                mean_values = [mean(class_results[i][metric]) for i in 1:num_trained_models]
-                std_values = [std(class_results[i][metric]) for i in 1:num_trained_models]
+                mean_values = [mean(class_results[j][i][metric]) for j in 1:num_trained_models]
+                std_values = [std(class_results[j][i][metric]) for j in 1:num_trained_models]
 
                 # Bar plot
                 bar_plot = bar(
@@ -457,6 +457,66 @@ function plotCombinedMetrics(
     end
 end
 
+function plotCombinedMetricsPerClass(
+    model_names::Vector{Any},
+    numClasses::Int64,
+    metrics::Vector{Symbol},
+    metric_means_class::Vector{Dict{Symbol, Vector{Any}}},
+    metric_stds_class::Vector{Dict{Symbol, Vector{Any}}};
+    output_dir::String = "./plots/",
+    size::Tuple{Int, Int} = (800, 600),
+    show::Bool = true,
+    ylim::Tuple{<:Real,<:Real}=(0.0, 1.0)
+)
+    if !isdir(output_dir)
+        mkdir(output_dir)
+    end
+
+    for i in 1:numClasses
+        for metric in metrics
+            # Bar plot
+            bar_plot = bar(
+                model_names,
+                metric_means_class[i][metric],
+                yerror=metric_stds_class[i][metric],
+                xlabel="Model",
+                ylabel=string(metric, " (mean ± std)"),
+                title="Comparison of Models based on $(metric) for Class $(i)",
+                legend=false,
+                grid=true,
+                ylim=ylim
+            )
+
+            # Line plot
+            line_plot = plot(
+                model_names,
+                metric_means_class[i][metric],
+                ribbon=metric_stds_class[i][metric],
+                xlabel="Model",
+                ylabel=string(metric, " (mean ± std)"),
+                title="Trends in $(metric) Across Models for Class $(i)",
+                label=string("Mean ", metric),
+                lw=2,
+                grid=true,
+                ylim=ylim
+            )
+
+            # Combined plot
+            combined_plot = plot(
+                bar_plot,
+                line_plot,
+                layout=(2, 1),
+                size=size
+            )
+
+            savefig(joinpath(output_dir, "combined_$(metric)_plots_class_$(i).png"))
+            if show
+                display(combined_plot)
+            end
+        end
+    end
+end
+
 
 function generateComparisonTable(
     model_names::Vector{Any},
@@ -486,3 +546,38 @@ function generateComparisonTable(
     println("\nComparison of Metrics Across Models (Sorted by $(string(sort_by))):")
     pretty_table(sorted_table, header=["Model", "Accuracy", "Precision", "Recall", "F1-Score"])
 end
+
+function generateComparisonTablePerClass(
+    model_names::Vector{Any},
+    numClasses::Int64,
+    metrics::Vector{Symbol},
+    metric_means_class::Vector{Dict{Symbol, Vector{Any}}},
+    metric_stds_class::Vector{Dict{Symbol, Vector{Any}}}; # Use `;` to define keyword arguments
+    sort_by::Symbol = :Accuracy,
+    rev::Bool = true
+)
+
+    for i in 1:numClasses
+        comparison_table = DataFrame(Model = model_names)
+        
+        for metric in metrics
+            comparison_table[!, string(metric, "_Class_", i)] = ["$(round(mean, digits=3)) ± $(round(std, digits=3))" for (mean, std) in zip(metric_means_class[i][metric], metric_stds_class[i][metric])]
+        end
+
+        # Add a numeric column for sorting based on the specified metric
+        sort_column = map(x -> parse(Float64, split(x, " ± ")[1]), comparison_table[!, string(sort_by, "_Class_", i)])
+        comparison_table[!, "Sort_By_Class_$(i)"] = sort_column
+
+        # Sort the table
+        sorted_table = sort(comparison_table, "Sort_By_Class_$(i)", rev=rev)
+
+        # Remove the sorting column before displaying
+        select!(sorted_table, Not("Sort_By_Class_$(i)"))
+
+        # Print the table
+        println("\nComparison of Metrics Across Models for Class $(i) (Sorted by $(string(sort_by))):")
+        pretty_table(sorted_table, header=["Model", "Accuracy", "Precision", "Recall", "F1-Score"])
+    end
+end
+
+
