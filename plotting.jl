@@ -145,6 +145,14 @@ function plotMetricsPerAlgorithm(
             mean_values = [mean(general_results[i][metric]) for i in 1:num_trained_models]
             std_values = [std(general_results[i][metric]) for i in 1:num_trained_models]
 
+            lower_limit = minimum(mean_values .- std_values)
+            upper_limit = maximum(mean_values .+ std_values)
+
+            ylim = (
+                max(lower_limit - 0.15, 0),
+                min(upper_limit + 0.15, 1)
+            )
+
             # Bar plot
             bar_plot = bar(
                 1:num_trained_models,
@@ -211,6 +219,14 @@ function plotMetricsPerClassAlgorithm(
             for metric in metrics
                 mean_values = [mean(class_results[j][i][metric]) for j in 1:num_trained_models]
                 std_values = [std(class_results[j][i][metric]) for j in 1:num_trained_models]
+
+                lower_limit = minimum(mean_values .- std_values)
+                upper_limit = maximum(mean_values .+ std_values)
+
+                ylim = (
+                    max(lower_limit - 0.15, 0),
+                    min(upper_limit + 0.15, 1)
+                )
 
                 # Bar plot
                 bar_plot = bar(
@@ -415,6 +431,15 @@ function plotCombinedMetrics(
     end
 
     for metric in metrics
+
+        lower_limit = minimum(metric_means[metric] .- metric_stds[metric])
+        upper_limit = maximum(metric_means[metric] .+ metric_stds[metric])
+
+        ylim = (
+            max(lower_limit - 0.15, 0),
+            min(upper_limit + 0.15, 1)
+        )
+
         # Bar plot
         bar_plot = bar(
             model_names,
@@ -474,6 +499,15 @@ function plotCombinedMetricsPerClass(
 
     for i in 1:numClasses
         for metric in metrics
+
+            lower_limit = minimum(metric_means_class[i][metric] .- metric_stds_class[i][metric])
+            upper_limit = maximum(metric_means_class[i][metric] .+ metric_stds_class[i][metric])
+
+            ylim = (
+                max(lower_limit - 0.15, 0),
+                min(upper_limit + 0.15, 1)
+            )
+
             # Bar plot
             bar_plot = bar(
                 model_names,
@@ -484,7 +518,7 @@ function plotCombinedMetricsPerClass(
                 title="Comparison of Models based on $(metric) for Class $(i)",
                 legend=false,
                 grid=true,
-                ylim=ylim
+                ylim = ylim
             )
 
             # Line plot
@@ -559,7 +593,7 @@ function generateComparisonTablePerClass(
 
     for i in 1:numClasses
         comparison_table = DataFrame(Model = model_names)
-        
+
         for metric in metrics
             comparison_table[!, string(metric, "_Class_", i)] = ["$(round(mean, digits=3)) ± $(round(std, digits=3))" for (mean, std) in zip(metric_means_class[i][metric], metric_stds_class[i][metric])]
         end
