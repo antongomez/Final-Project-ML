@@ -75,7 +75,36 @@ function plotTraining(train_loss::AbstractVector{<:Real};
     return g
 end
 
+function aggregateMetrics(
+    loaded_obj::Dict{Symbol, Dict{String, Any}};
+    metrics::Vector{Symbol} = [:accuracy, :precision, :recall, :f1_score],
+    ensemble::Bool = false
+)
+    model_names = []
+    metric_means = Dict(metric => [] for metric in metrics)
+    metric_stds = Dict(metric => [] for metric in metrics)
 
+    for (algorithm, results) in loaded_obj
+        push!(model_names, string(algorithm))
+        general_results = results["general_results"]
+
+        for metric in metrics
+            if ensemble
+                push!(metric_means[metric], mean(general_results[metric]))
+                push!(metric_stds[metric], std(general_results[metric]))
+            else
+                metric_values = [mean(general_result[metric]) for general_result in general_results]
+                push!(metric_means[metric], mean(metric_values))
+                push!(metric_stds[metric], std(metric_values))
+            end
+        end
+    end
+
+    return model_names, metrics, metric_means, metric_stds
+end
+
+
+# Also the metrics per class
 function aggregateMetrics(
     loaded_obj::Dict{Symbol, Dict{String, Any}},
     numClasses::Int64; 
@@ -581,7 +610,7 @@ function generateComparisonTable(
     pretty_table(sorted_table, header=["Model", "Accuracy", "Precision", "Recall", "F1-Score"])
 end
 
-function generateComparisonTablePerClass(
+function generateComparisonTable(
     model_names::Vector{Any},
     numClasses::Int64,
     metrics::Vector{Symbol},
