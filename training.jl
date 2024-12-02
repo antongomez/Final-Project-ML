@@ -587,7 +587,7 @@ function modelCrossValidation(
     applyPCA::Bool=false,
     pcaComponents::Union{Float64,Int64}=10,
     applySmote::Bool=false,
-    smotePercentages::Dict{String,Int64}=Dict(),
+    smotePercentages::Dict{String,Int64}=Dict{String,Int64}(),
     smoteNeighbors::Int64=5,
     verbose::Bool=false)
     """
