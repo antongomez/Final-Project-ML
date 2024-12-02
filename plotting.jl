@@ -77,31 +77,44 @@ end
 
 
 function aggregateMetrics(
-    loaded_obj::Dict{Symbol, Dict{String, Any}}; 
+    loaded_obj::Dict{Symbol, Dict{String, Any}},
+    numClasses::Int64; 
     metrics::Vector{Symbol} = [:accuracy, :precision, :recall, :f1_score],
     ensemble::Bool = false
 )
     model_names = []
     metric_means = Dict(metric => [] for metric in metrics)
     metric_stds = Dict(metric => [] for metric in metrics)
+    metric_means_class = [Dict(metric => [] for metric in metrics) for _ in 1:numClasses]
+    metric_stds_class = [Dict(metric => [] for metric in metrics) for _ in 1:numClasses]
 
     for (algorithm, results) in loaded_obj
         push!(model_names, string(algorithm))
         general_results = results["general_results"]
+        class_results = results["class_results"]
 
         for metric in metrics
             if ensemble
                 push!(metric_means[metric], mean(general_results[metric]))
                 push!(metric_stds[metric], std(general_results[metric]))
+                for i in 1:numClasses
+                    push!(metric_means_class[i][metric], mean(class_results[i][metric]))
+                    push!(metric_stds_class[i][metric], std(class_results[i][metric]))
+                end
             else
                 metric_values = [mean(general_result[metric]) for general_result in general_results]
                 push!(metric_means[metric], mean(metric_values))
                 push!(metric_stds[metric], std(metric_values))
+                for i in 1:numClasses
+                    metric_values = [mean(class_result[metric]) for class_result in class_results]
+                    push!(metric_means_class[i][metric], mean(metric_values))
+                    push!(metric_stds_class[i][metric], std(metric_values))
+                end
             end
         end
     end
 
-    return model_names, metrics, metric_means, metric_stds
+    return model_names, metrics, metric_means, metric_stds, metric_means_class, metric_stds_class
 end
 
 function plotMetricsPerAlgorithm(
