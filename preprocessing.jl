@@ -10,9 +10,7 @@
 """
 
 using Random;
-using ScikitLearn;
-
-@sk_import neighbors:KNeighborsClassifier
+using NearestNeighbors;
 
 """ 1.ONE HOT ENCODING """
 
@@ -522,9 +520,6 @@ function smote(inputs::AbstractArray{<:Real,2}, targets::AbstractArray{<:Any,1},
     balanced_inputs = inputs[no_resampling_targets_index, :]
     balanced_targets = targets[no_resampling_targets_index]
 
-    # Define a KNN model and
-    model = KNeighborsClassifier(n_neighbors=k + 1, weights="uniform", metric="euclidean")
-
     # Process each minority class that requires oversampling
     for (class_name, N) in n_percentages
         # Filter the actual minority class
@@ -543,20 +538,20 @@ function smote(inputs::AbstractArray{<:Real,2}, targets::AbstractArray{<:Any,1},
 
         # Extract the features
         feature_matrix = Matrix(class_samples)
-        # Fit the KNN model with the elements of the minority class
-        fit!(model, feature_matrix, fill(class_name, T))
-        # Generate the k-nearest neighbors for each sample
-        _, neighbor_indices = model.kneighbors(feature_matrix)
-        # Exclude the first column, which is the sample itself
-        neighbor_indices = neighbor_indices[:, 2:end]
+        # Obtain a KDTree with the features
+        tree = KDTree(transpose(feature_matrix))
 
         # Generate the synthetic samples
         syntetic_samples = zeros(num_synthetic * T, size(inputs, 2))
         newindex = 0
         for i in 1:T
-            # Choose 'num_synthetic' neighbors for the current sample
-            neighbor_idx = rand(1:5, num_synthetic)
-            neighbors = class_samples[neighbor_idx, :]
+            # Calculate the k+1 neighbors for the current sample
+            neighbors_idx, _ = knn(tree, class_samples[i, :], k + 1)
+            # Remove the current sample from the neighbors
+            neighbors_idx = neighbors_idx[neighbors_idx.!=i]
+            # Choose 'num_synthetic' neighbors for the current sample (with replacement)
+            neighbors_idx = neighbors_idx[rand(1:5, num_synthetic)]
+            neighbors = class_samples[neighbors_idx, :]
             # Calculate the difference between the neighbors and the current sample
             dif = neighbors .- class_samples[1:1, :]
             # Generate random gaps
