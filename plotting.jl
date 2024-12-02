@@ -182,6 +182,75 @@ function plotMetricsPerAlgorithm(
     end
 end
 
+function plotMetricsPerClassAlgorithm(
+    loaded_obj::Dict{Symbol, Dict{String, Any}},
+    numClasses::Int64; 
+    output_dir::String = "./plots/",
+    metrics::Vector{Symbol} = [:accuracy, :precision, :recall, :f1_score],
+    size::Tuple{Int, Int} = (1200, 600),
+    ylim::Tuple{<:Real,<:Real}=(0.0, 1.0)
+)
+    if !isdir(output_dir)
+        mkdir(output_dir)
+    end
+
+    for (algorithm, results) in loaded_obj
+        num_trained_models = results["num_trained_models"]
+        class_results = results["class_results"]
+        parameters_names = keys(results["parameters"])
+        parameters = results["parameters"]
+
+        save_folder = joinpath(output_dir, string(algorithm))
+        if !isdir(save_folder)
+            mkdir(save_folder)
+        end
+
+        param_labels = [join([string(param, ": ", parameters[param][i]) for param in parameters_names], ", ") for i in 1:num_trained_models]
+
+        for i in 1:numClasses
+            for metric in metrics
+                mean_values = [mean(class_results[i][metric]) for i in 1:num_trained_models]
+                std_values = [std(class_results[i][metric]) for i in 1:num_trained_models]
+
+                # Bar plot
+                bar_plot = bar(
+                    1:num_trained_models,
+                    mean_values,
+                    yerror=std_values,
+                    ylabel=string(metric, " (mean ± std)"),
+                    title="Performance of $(metric) for $(algorithm) on Class $(i)",
+                    legend=false,
+                    grid=true,
+                    xticks=(1:num_trained_models, param_labels),
+                    size=size,
+                    ylim=ylim
+                )
+                savefig(joinpath(save_folder, string(metric, "_performance_class_", i, "_bar.png")))
+
+                # Line plot
+                line_plot = plot(
+                    1:num_trained_models,
+                    mean_values,
+                    ribbon=std_values,
+                    xlabel="Hyperparameter Combination",
+                    ylabel=string(metric, " (mean ± std)"),
+                    title="Performance of $(metric) for $(algorithm) on Class $(i)",
+                    label="Mean $(metric)",
+                    grid=true,
+                    xticks=(1:num_trained_models, param_labels),
+                    lw=2,
+                    markershape=:circle,
+                    size=size,
+                    ylim=ylim,
+                )
+                savefig(joinpath(save_folder, string(metric, "_performance_class_", i, "_line.png")))
+                println("Saved plots for $(algorithm) and $(metric) on Class $(i).")
+            end
+        end
+    end
+end
+
+
 function generateAlgorithmTables(
     loaded_obj::Dict{Symbol, Dict{String, Any}}; 
     sort_by::Symbol = :Accuracy,
@@ -252,6 +321,82 @@ function generateAlgorithmTables(
         end
 
         println("Results for $(algorithm) saved to $(output_dir).")
+    end
+end
+
+function generateClassAlgorithmTables(
+    loaded_obj::Dict{Symbol, Dict{String, Any}},
+    numClasses::Int64; 
+    sort_by::Symbol = :Accuracy,
+    rev::Bool = true,
+    output_dir::String = "./tables/"
+)
+    # Ensure output directory exists
+    if !isdir(output_dir)
+        mkdir(output_dir)
+    end
+
+    for (algorithm, results) in loaded_obj
+        num_trained_models = results["num_trained_models"]
+        class_results = results["class_results"]
+        parameters_names = keys(results["parameters"])
+        parameters = results["parameters"]
+
+        # Prepare labels for hyperparameter configurations
+        param_labels = [join([string(param, ": ", parameters[param][i]) for param in parameters_names], ", ") for i in 1:num_trained_models]
+
+        for i in 1:numClasses
+            # Initialize arrays to store metrics
+            configurations = String[]
+            accuracies = Float64[]
+            precisions = Float64[]
+            recalls = Float64[]
+            f1_scores = Float64[]
+
+            # Populate the arrays
+            for j in 1:num_trained_models
+                try
+                    push!(configurations, param_labels[j])
+                    push!(accuracies, mean(class_results[j][i][:accuracy]))
+                    push!(precisions, mean(class_results[j][i][:precision]))
+                    push!(recalls, mean(class_results[j][i][:recall]))
+                    push!(f1_scores, mean(class_results[j][i][:f1_score]))
+                catch e
+                    println("Skipping configuration $(param_labels[j]) for Class $(i) due to missing or invalid data.")
+                end
+            end
+
+            # Check if data is complete
+            if isempty(configurations) || isempty(accuracies)
+                println("No valid data for algorithm: $(algorithm) on Class $(i). Skipping...")
+                continue
+            end
+
+            # Create DataFrame for the current algorithm
+            model_table = DataFrame(
+                Configuration = configurations,
+                Accuracy = accuracies,
+                Precision = precisions,
+                Recall = recalls,
+                F1_Score = f1_scores
+            )
+
+            # Sort table by the specified metric
+            sorted_table = sort(model_table, sort_by, rev=rev)
+
+            # Show the table
+            println("\nComparison of Hyperparameter Configurations for $(algorithm) on Class $(i) (Sorted by $(string(sort_by))):")
+            pretty_table(sorted_table, header=["Configuration", "Accuracy", "Precision", "Recall", "F1-Score"])
+            
+            # Save the table as text
+            txt_file = joinpath(output_dir, "$(algorithm)_hyperparameter_configurations_class_$(i).txt")
+            open(txt_file, "w") do io
+                println(io, "\nComparison of Hyperparameter Configurations for $(algorithm) on Class $(i) (Sorted by $(string(sort_by))):")
+                pretty_table(io, sorted_table, header=["Configuration", "Accuracy", "Precision", "Recall", "F1-Score"])
+            end
+
+            println("Results for $(algorithm) on Class $(i) saved to $(output_dir).")
+        end
     end
 end
 
