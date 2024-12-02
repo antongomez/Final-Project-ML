@@ -588,7 +588,7 @@ function modelCrossValidation(
     pcaComponents::Union{Float64,Int64}=10,
     applySmote::Bool=false,
     smoteNeighbors::Int64=5,
-    smotePercentage::Dict{String,Integer}=Dict(),
+    #smotePercentage::Dict{String,Integer}=Dict(),
     verbose::Bool=false)
     """
     This function performs cross-validation for a given model with the specified hyperparameters, inputs, and targets.
