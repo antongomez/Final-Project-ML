@@ -585,7 +585,10 @@ function modelCrossValidation(
     metricsToSave::AbstractArray{<:Union{String,Symbol},1}=[:accuracy],
     normalizationType::Symbol=:zeroMean,
     applyPCA::Bool=false,
-    pcaComponents::Union{Float64, Int64}=10,
+    pcaComponents::Union{Float64,Int64}=10,
+    applySmote::Bool=false,
+    smoteNeighbors::Int64=5,
+    smotePercentage::Dict{String,Integer}=Dict(),
     verbose::Bool=false)
     """
     This function performs cross-validation for a given model with the specified hyperparameters, inputs, and targets.
@@ -601,6 +604,9 @@ function modelCrossValidation(
         - normalizationType: The type of normalization to apply to the data.
         - applyPCA: A boolean to apply PCA to the data.
         - pcaComponents: The threshold of the PCA.
+        - applySmote: A boolean to apply SMOTE to the data.
+        - smoteNeighbors: The number of neighbors to use in SMOTE.
+        - smotePercentage: The percentage of SMOTE to apply to each class.
         - verbose: A boolean to show the loss in the console.
 
     Returns:
@@ -692,13 +698,18 @@ function modelCrossValidation(
                     testDatasetFold = (test_inputs, testDatasetFold[2])
                 end
 
+                # Oversample the data with SMOTE
+                if applySmote
+                    balanced_inputs, balanced_targets = smote(train_inputs, trainingDatasetFold[2], smotePercentages, smoteNeighbors)
+                    trainingDatasetFold = (balanced_inputs, balanced_targets)
+                end
+
             else
                 # Normalize the data
                 normalizationParameters = calculateNormalizationParameters(trainingDatasetFold[1], normalizationType)
                 performNormalization!(trainingDatasetFold[1], normalizationParameters, normalizationType)
                 performNormalization!(testDatasetFold[1], normalizationParameters, normalizationType)
 
-                # Reduce dimension with pca
                 if applyPCA
                     pca = PCA(n_components=pcaComponents)
                     fit!(pca, trainingDatasetFold[1])
@@ -706,6 +717,11 @@ function modelCrossValidation(
                     test_inputs = pca.transform(testDatasetFold[1])
                     trainingDatasetFold = (train_inputs, trainingDatasetFold[2])
                     testDatasetFold = (test_inputs, testDatasetFold[2])
+                end
+
+                if applySmote
+                    balanced_inputs, balanced_targets = smote(train_inputs, trainingDatasetFold[2], smotePercentages, smoteNeighbors)
+                    trainingDatasetFold = (balanced_inputs, balanced_targets)
                 end
             end
 
@@ -728,7 +744,7 @@ function modelCrossValidation(
                     results_iterations[metric][j] = metrics[metric]
                 end
             end
-                
+
         else
             # Get the training and test datasets
             trainingDatasetFold = (inputs[crossValidationIndices.!=i, :], targets[crossValidationIndices.!=i])
@@ -739,7 +755,6 @@ function modelCrossValidation(
             performNormalization!(trainingDatasetFold[1], normalizationParameters, normalizationType)
             performNormalization!(testDatasetFold[1], normalizationParameters, normalizationType)
 
-            # Reduce dimension with pca
             if applyPCA
                 pca = PCA(n_components=pcaComponents)
                 fit!(pca, trainingDatasetFold[1])
@@ -747,6 +762,11 @@ function modelCrossValidation(
                 test_inputs = pca.transform(testDatasetFold[1])
                 trainingDatasetFold = (train_inputs, trainingDatasetFold[2])
                 testDatasetFold = (test_inputs, testDatasetFold[2])
+            end
+
+            if applySmote
+                balanced_inputs, balanced_targets = smote(trainingDatasetFold[1], trainingDatasetFold[2], smotePercentages, smoteNeighbors)
+                trainingDatasetFold = (balanced_inputs, balanced_targets)
             end
 
             if modelType == :scikit_ANN
@@ -960,29 +980,29 @@ function get_ensemble_model(ensemble_symbol, ensembleHyperParameters, estimators
     if ensemble_symbol == :Voting
         base_models = []
         for (i, (modelType, modelHyperParameters)) in enumerate(zip(estimators, modelsHyperParameters))
-            modelName, model = get_base_model(modelType, modelHyperParameters, i);
+            modelName, model = get_base_model(modelType, modelHyperParameters, i)
             push!(base_models, (modelName, model))
         end
-        ensembleHyperParameters[:estimators] = base_models;
-        return VotingClassifier(; ensembleHyperParameters...);
+        ensembleHyperParameters[:estimators] = base_models
+        return VotingClassifier(; ensembleHyperParameters...)
     elseif ensemble_symbol == :Stacking
         base_models = []
         for (i, (modelType, modelHyperParameters)) in enumerate(zip(estimators, modelsHyperParameters))
-            modelName, model = get_base_model(modelType, modelHyperParameters, i);
+            modelName, model = get_base_model(modelType, modelHyperParameters, i)
             push!(base_models, (modelName, model))
         end
-        ensembleHyperParameters[:estimators] = base_models;
-        return StackingClassifier(; ensembleHyperParameters...);
+        ensembleHyperParameters[:estimators] = base_models
+        return StackingClassifier(; ensembleHyperParameters...)
     elseif ensemble_symbol == :Bagging
-        base_estimator = get_base_model(estimators[1], modelsHyperParameters[1], 1)[2];
-        ensembleHyperParameters[:base_estimator] = base_estimator;
-        return BaggingClassifier(; ensembleHyperParameters...);
+        base_estimator = get_base_model(estimators[1], modelsHyperParameters[1], 1)[2]
+        ensembleHyperParameters[:base_estimator] = base_estimator
+        return BaggingClassifier(; ensembleHyperParameters...)
     elseif ensemble_symbol == :AdaBoost
-        base_estimator = get_base_model(estimators[1], modelsHyperParameters[1], 1)[2];
-        ensembleHyperParameters[:base_estimator] = base_estimator;
-        return AdaBoostClassifier(; ensembleHyperParameters...);
+        base_estimator = get_base_model(estimators[1], modelsHyperParameters[1], 1)[2]
+        ensembleHyperParameters[:base_estimator] = base_estimator
+        return AdaBoostClassifier(; ensembleHyperParameters...)
     elseif ensemble_symbol == :GradientBoosting
-        return GradientBoostingClassifier(; ensembleHyperParameters...);
+        return GradientBoostingClassifier(; ensembleHyperParameters...)
     else
         error("Ensemble model not allowed. Choose one of the following: [:Voting, :Stacking, :Bagging, :AdaBoost, :GradientBoosting]")
     end
@@ -999,7 +1019,7 @@ function trainClassEnsemble(
     verbose::Bool=false,
     normalizationType::Symbol=:zeroMean,
     applyPCA::Bool=false,
-    pcaComponents::Union{Float64, Int64}=10,
+    pcaComponents::Union{Float64,Int64}=10,
     repetitionsTraining::Int=1
 )
     """
@@ -1033,7 +1053,7 @@ function trainClassEnsemble(
 
     # Get the number of folds
     n_folds = maximum(kFoldIndices)
-    
+
     # Get the number of classes
     numClasses = length(unique(targets))
 
@@ -1056,12 +1076,12 @@ function trainClassEnsemble(
         testIdx = findall(kFoldIndices .== i)
         trainingDatasetFold = (inputs[trainIdx, :], targets[trainIdx])
         testDatasetFold = (inputs[testIdx, :], targets[testIdx])
-            
+
         # Normalize the datasets
         normalizationParameters = calculateNormalizationParameters(trainingDatasetFold[1], normalizationType)
-        performNormalization!(trainingDatasetFold[1], normalizationParameters, normalizationType);
-        performNormalization!(testDatasetFold[1], normalizationParameters, normalizationType);
-            
+        performNormalization!(trainingDatasetFold[1], normalizationParameters, normalizationType)
+        performNormalization!(testDatasetFold[1], normalizationParameters, normalizationType)
+
         # Apply PCA if specified
         if applyPCA
             pca = PCA(n_components=pcaComponents)
@@ -1075,7 +1095,7 @@ function trainClassEnsemble(
                 testDatasetFold[2]
             )
         end
-        
+
         results_repetitions = Dict{Symbol,AbstractArray{Float64,1}}()
         for metric in metricsToSave
             results_repetitions[metric] = zeros(Float64, repetitionsTraining)
@@ -1086,17 +1106,17 @@ function trainClassEnsemble(
         ]
         for rep in 1:repetitionsTraining
             # Create the ensemble model
-            ensemble = get_ensemble_model(ensembleType, ensembleHyperParameters, estimators, modelsHyperParameters);
-                
+            ensemble = get_ensemble_model(ensembleType, ensembleHyperParameters, estimators, modelsHyperParameters)
+
             # Train the ensemble
             fit!(ensemble, trainingDatasetFold[1], trainingDatasetFold[2])
-                
+
             # Predict on the test set
             predictions = ensemble.predict(testDatasetFold[1])
 
             update_metrics!(predictions, testDatasetFold[2], metricsToSave, results_repetitions, rep, class_results_repetitions, numClasses, false)
         end
-        
+
         if verbose
             println("Mean results for fold ", i, ":")
         end
@@ -1144,7 +1164,7 @@ function trainClassEnsemble(baseEstimator::Symbol,
     verbose::Bool=false,
     normalizationType::Symbol=:zeroMean,
     applyPCA::Bool=false,
-    pcaComponents::Union{Float64, Int64}=10)
+    pcaComponents::Union{Float64,Int64}=10)
     """
     This function trains an ensemble model with the same base model using k-fold cross-validation, receiving the inputs and targets as both real and boolean matrixes, respectively.
 
