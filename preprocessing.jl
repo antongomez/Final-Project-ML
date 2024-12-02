@@ -502,21 +502,21 @@ end
 
 """ 5. SMOTE """
 
-function smote(inputs::AbstractArray{<:Real,2}, targets::AbstractArray{<:Any,1}, N_map::Dict{String,Int}, k::Int)
+function smote(inputs::AbstractArray{<:Real,2}, targets::AbstractArray{<:Any,1}, n_percentages::Dict{String,Int}, k::Int)
     """
     Implementation of the SMOTE algorithm to oversampling or undersampling the specified classes.
 
       - input: Matrix with the features.
       - targets: Vector with the target values.
-      - N_map: Dictionary with the percentage of samples to generate for each minority class (100 corresponds to the original number of samples).
+      - n_percentages: Dictionary with the percentage of samples to generate for each minority class (100 corresponds to the original number of samples).
       - k: Number of neighbors to consider for the SMOTE algorithm.
 
     Returns:
       - balanced_inputs: Matrix with the balanced features.
       - balanced_targets: Vector with the balanced target values.
     """
-    # Calculate the classes that are not in N_map
-    no_resampling_targets = setdiff(Set(targets), Set(keys(N_map)))
+    # Calculate the classes that are not in n_percentages
+    no_resampling_targets = setdiff(Set(targets), Set(keys(n_percentages)))
     # Filter the original inputs and targets
     no_resampling_targets_index = findall(x -> x in no_resampling_targets, targets)
     balanced_inputs = inputs[no_resampling_targets_index, :]
@@ -526,7 +526,7 @@ function smote(inputs::AbstractArray{<:Real,2}, targets::AbstractArray{<:Any,1},
     model = KNeighborsClassifier(n_neighbors=k + 1, weights="uniform", metric="euclidean")
 
     # Process each minority class that requires oversampling
-    for (class_name, N) in N_map
+    for (class_name, N) in n_percentages
         # Filter the actual minority class
         class_samples = inputs[targets.==class_name, :]
         T = size(class_samples, 1)
