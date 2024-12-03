@@ -1124,6 +1124,9 @@ function trainClassEnsemble(
 
             # Predict on the test set
             predictions = ensemble.predict(testDatasetFold[1])
+            
+            # Convert the predictions to a vector if predictions is PyObject array
+            predictions = convert(Vector{String}, predictions)
 
             update_metrics!(predictions, testDatasetFold[2], metricsToSave, results_repetitions, rep, class_results_repetitions, numClasses, false)
         end

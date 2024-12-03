@@ -94,17 +94,12 @@ function aggregateMetrics(
             if ensemble
                 push!(metric_means[metric], mean(general_results[metric]))
                 push!(metric_stds[metric], std(general_results[metric]))
-                
-                # Compute maximum across all ensemble results
                 push!(metric_maxes[metric], maximum(general_results[metric]))
             else
                 metric_values = [mean(general_result[metric]) for general_result in general_results]
                 push!(metric_means[metric], mean(metric_values))
                 push!(metric_stds[metric], std(metric_values))
-
-                # Compute maximum across all trained models
-                metric_values_max = [maximum(general_result[metric]) for general_result in general_results]
-                push!(metric_maxes[metric], maximum(metric_values_max))
+                push!(metric_maxes[metric], maximum(metric_values))
             end
         end
     end
@@ -138,36 +133,22 @@ function aggregateMetrics(
             if ensemble
                 push!(metric_means[metric], mean(general_results[metric]))
                 push!(metric_stds[metric], std(general_results[metric]))
+                push!(metric_maxes[metric], maximum(general_results[metric]))
                 for i in 1:numClasses
                     push!(metric_means_class[i][metric], mean(class_results[i][metric]))
                     push!(metric_stds_class[i][metric], std(class_results[i][metric]))
-                end
-
-                # Compute maximum for general metrics
-                push!(metric_maxes[metric], maximum(general_results[metric]))
-
-                # Compute maximum for per-class metrics
-                for i in 1:numClasses
                     push!(metric_maxes_class[i][metric], maximum(class_results[i][metric]))
                 end
             else
                 metric_values = [mean(general_result[metric]) for general_result in general_results]
                 push!(metric_means[metric], mean(metric_values))
                 push!(metric_stds[metric], std(metric_values))
+                push!(metric_maxes[metric], maximum(metric_values))
                 for i in 1:numClasses
-                    metric_values = [mean(result[i][metric]) for result in class_results]
-                    push!(metric_means_class[i][metric], mean(metric_values))
-                    push!(metric_stds_class[i][metric], std(metric_values))
-                end
-
-                # Compute maximum for general metrics
-                metric_values_max = [maximum(general_result[metric]) for general_result in general_results]
-                push!(metric_maxes[metric], maximum(metric_values_max))
-
-                # Compute maximum for per-class metrics
-                for i in 1:numClasses
-                    metric_values_max = [maximum(result[i][metric]) for result in class_results]
-                    push!(metric_maxes_class[i][metric], maximum(metric_values_max))
+                    metric_values_class = [mean(result[i][metric]) for result in class_results]
+                    push!(metric_means_class[i][metric], mean(metric_values_class))
+                    push!(metric_stds_class[i][metric], std(metric_values_class))
+                    push!(metric_maxes_class[i][metric], maximum(metric_values_class))
                 end
             end
         end
@@ -362,10 +343,10 @@ function generateAlgorithmTables(
         for i in 1:num_trained_models
             try
                 push!(configurations, param_labels[i])
-                push!(accuracies, maximum(general_results[i][:accuracy]))
-                push!(precisions, maximum(general_results[i][:precision]))
-                push!(recalls, maximum(general_results[i][:recall]))
-                push!(f1_scores, maximum(general_results[i][:f1_score]))
+                push!(accuracies, mean(general_results[i][:accuracy]))
+                push!(precisions, mean(general_results[i][:precision]))
+                push!(recalls, mean(general_results[i][:recall]))
+                push!(f1_scores, mean(general_results[i][:f1_score]))
             catch e
                 println("Skipping configuration $(param_labels[i]) due to missing or invalid data.")
             end
