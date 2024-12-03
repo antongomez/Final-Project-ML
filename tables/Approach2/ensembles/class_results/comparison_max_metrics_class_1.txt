@@ -1,9 +1,9 @@
 
-Comparison of Maximum Metrics Across Models for Class 1 (Sorted by f1_score):
+Comparison of Metrics Across Models for Class 1 (Sorted by f1_score):
 ┌─────────────┬──────────┬───────────┬────────┬──────────┐
 │       Model │ Accuracy │ Precision │ Recall │ F1-Score │
 ├─────────────┼──────────┼───────────┼────────┼──────────┤
-│ Voting_Hard │    0.868 │     0.848 │  0.951 │    0.842 │
-│    Stacking │    0.867 │     0.827 │  0.922 │    0.836 │
-│ Voting_Soft │    0.869 │     0.842 │  0.934 │    0.835 │
+│ Voting_Hard │    0.839 │     0.783 │  0.877 │    0.823 │
+│    Stacking │     0.85 │     0.801 │  0.846 │    0.821 │
+│ Voting_Soft │    0.848 │       0.8 │  0.849 │     0.82 │
 └─────────────┴──────────┴───────────┴────────┴──────────┘
