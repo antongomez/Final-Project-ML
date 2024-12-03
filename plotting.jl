@@ -179,8 +179,7 @@ function plotMetricsAlgorithm(
     loaded_obj::Dict{Symbol, Dict{String, Any}}; 
     output_dir::String = "./plots/",
     metrics::Vector{Symbol} = [:accuracy, :precision, :recall, :f1_score],
-    size::Tuple{Int, Int} = (1200, 600),
-    ylim::Tuple{<:Real,<:Real}=(0.0, 1.0)
+    size::Tuple{Int, Int} = (1200, 600)
 )
     if !isdir(output_dir)
         mkdir(output_dir)
@@ -253,8 +252,7 @@ function plotMetricsAlgorithm(
     numClasses::Int64; 
     output_dir::String = "./plots/",
     metrics::Vector{Symbol} = [:accuracy, :precision, :recall, :f1_score],
-    size::Tuple{Int, Int} = (1200, 600),
-    ylim::Tuple{<:Real,<:Real}=(0.0, 1.0)
+    size::Tuple{Int, Int} = (1200, 600)
 )
     if !isdir(output_dir)
         mkdir(output_dir)
@@ -481,8 +479,7 @@ function plotCombinedMetrics(
     metric_stds::Dict{Symbol, Vector{Any}};
     output_dir::String = "./plots/",
     size::Tuple{Int, Int} = (800, 600),
-    show::Bool = true,
-    ylim::Tuple{<:Real,<:Real}=(0.0, 1.0)
+    show::Bool = true
 )
     if !isdir(output_dir)
         mkdir(output_dir)
@@ -548,8 +545,7 @@ function plotCombinedMetrics(
     metric_stds_class::Vector{Dict{Symbol, Vector{Any}}};
     output_dir::String = "./plots/",
     size::Tuple{Int, Int} = (800, 600),
-    show::Bool = true,
-    ylim::Tuple{<:Real,<:Real}=(0.0, 1.0)
+    show::Bool = true
 )
     if !isdir(output_dir)
         mkdir(output_dir)
@@ -614,6 +610,7 @@ function generateComparisonTable(
     model_names::Vector{Any},
     metrics::Vector{Symbol},
     metric_maxes::Dict{Symbol, Vector{Any}}; # Use `;` to define keyword arguments
+    output_dir::String = "./tables/",
     sort_by::Symbol = :Accuracy,
     rev::Bool = true
 )
@@ -636,6 +633,13 @@ function generateComparisonTable(
     println("\nComparison of Maximum Metrics Across Models (Sorted by $(string(sort_by))):")
     pretty_table(sorted_table, header=["Model", "Accuracy", "Precision", "Recall", "F1-Score"])
 
+    # Save the table as text
+    txt_file = joinpath(output_dir, "comparison_max_metrics.txt")
+    open(txt_file, "w") do io
+        println(io, "\nComparison of Maximum Metrics Across Models (Sorted by $(string(sort_by))):")
+        pretty_table(io, sorted_table, header=["Model", "Accuracy", "Precision", "Recall", "F1-Score"])
+    end
+
     # return sorted_table
 end
 
@@ -644,6 +648,7 @@ function generateComparisonTable(
     numClasses::Int64,
     metrics::Vector{Symbol},
     metric_maxes_class::Vector{Dict{Symbol, Vector{Any}}}; # Use `;` to define keyword arguments
+    output_dir::String = "./tables/",
     sort_by::Symbol = :Accuracy,
     rev::Bool = true
 )
@@ -668,6 +673,13 @@ function generateComparisonTable(
         # Print the table
         println("\nComparison of Maximum Metrics Across Models for Class $(i) (Sorted by $(string(sort_by))):")
         pretty_table(sorted_table, header=["Model", "Accuracy", "Precision", "Recall", "F1-Score"])
+
+        # Save the table as text
+        txt_file = joinpath(output_dir, "comparison_max_metrics_class_$(i).txt")
+        open(txt_file, "w") do io
+            println(io, "\nComparison of Maximum Metrics Across Models for Class $(i) (Sorted by $(string(sort_by))):")
+            pretty_table(io, sorted_table, header=["Model", "Accuracy", "Precision", "Recall", "F1-Score"])
+        end
     end
 end
 
