@@ -625,13 +625,13 @@ function generateComparisonTable(
     select!(sorted_table, Not("Sort_By"))
 
     # Display the table
-    println("\nComparison of Maximum Metrics Across Models (Sorted by $(string(sort_by))):")
+    println("\nComparison of Metrics Across Models (Sorted by $(string(sort_by))):")
     pretty_table(sorted_table, header=["Model", "Accuracy", "Precision", "Recall", "F1-Score"])
 
     # Save the table as text
     txt_file = joinpath(output_dir, "comparison_max_metrics.txt")
     open(txt_file, "w") do io
-        println(io, "\nComparison of Maximum Metrics Across Models (Sorted by $(string(sort_by))):")
+        println(io, "\nComparison of Metrics Across Models (Sorted by $(string(sort_by))):")
         pretty_table(io, sorted_table, header=["Model", "Accuracy", "Precision", "Recall", "F1-Score"])
     end
 
@@ -668,13 +668,13 @@ function generateComparisonTable(
         select!(sorted_table, Not("Sort_By_Class_$(i)"))
 
         # Print the table
-        println("\nComparison of Maximum Metrics Across Models for Class $(i) (Sorted by $(string(sort_by))):")
+        println("\nComparison of Metrics Across Models for Class $(i) (Sorted by $(string(sort_by))):")
         pretty_table(sorted_table, header=["Model", "Accuracy", "Precision", "Recall", "F1-Score"])
 
         # Save the table as text
         txt_file = joinpath(save_folder, "comparison_max_metrics_class_$(i).txt")
         open(txt_file, "w") do io
-            println(io, "\nComparison of Maximum Metrics Across Models for Class $(i) (Sorted by $(string(sort_by))):")
+            println(io, "\nComparison of Metrics Across Models for Class $(i) (Sorted by $(string(sort_by))):")
             pretty_table(io, sorted_table, header=["Model", "Accuracy", "Precision", "Recall", "F1-Score"])
         end
     end
