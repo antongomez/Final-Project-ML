@@ -5,6 +5,7 @@ Comparison of Hyperparameter Configurations for KNN (Sorted by F1_Score):
 ├────────────────────────────────────────────┼──────────┼───────────┼──────────┼──────────┤
 │ Enrolled: 200, Graduate: 100, Dropout: 200 │ 0.819171 │  0.736092 │ 0.727684 │ 0.723681 │
 │ Enrolled: 200, Graduate: 100, Dropout: 100 │ 0.806289 │  0.731936 │ 0.706546 │ 0.706953 │
+│ Enrolled: 100, Graduate: 100, Dropout: 100 │ 0.814451 │  0.720507 │ 0.732203 │ 0.705354 │
 │ Enrolled: 300, Graduate: 100, Dropout: 200 │ 0.795167 │  0.715376 │  0.68623 │ 0.693176 │
 │ Enrolled: 300, Graduate: 100, Dropout: 100 │ 0.789667 │  0.727794 │ 0.677201 │ 0.686573 │
 │  Enrolled: 200, Graduate: 50, Dropout: 100 │ 0.752564 │  0.704657 │ 0.624859 │ 0.643242 │

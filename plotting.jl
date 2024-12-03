@@ -268,10 +268,8 @@ function plotMetricsAlgorithm(
         parameters_names = keys(results["parameters"])
         parameters = results["parameters"]
 
-        save_folder = joinpath(output_dir, string(algorithm))
-        if !isdir(save_folder)
-            mkdir(save_folder)
-        end
+        save_folder = joinpath(joinpath(output_dir, string(algorithm), "class_results"))
+        mkpath(save_folder)
 
         param_labels = [join([string(param, ": ", parameters[param][i]) for param in parameters_names], ", ") for i in 1:num_trained_models]
 
@@ -345,6 +343,11 @@ function generateAlgorithmTables(
         parameters_names = keys(results["parameters"])
         parameters = results["parameters"]
 
+        save_folder = joinpath(output_dir, string(algorithm))
+        if !isdir(save_folder)
+            mkdir(save_folder)
+        end
+
         # Prepare labels for hyperparameter configurations
         param_labels = [join([string(param, ": ", parameters[param][i]) for param in parameters_names], ", ") for i in 1:num_trained_models]
 
@@ -391,7 +394,7 @@ function generateAlgorithmTables(
         pretty_table(sorted_table, header=["Configuration", "Accuracy", "Precision", "Recall", "F1-Score"])
 
         # Save the table as text
-        txt_file = joinpath(output_dir, "$(algorithm)_hyperparameter_configurations.txt")
+        txt_file = joinpath(save_folder, "$(algorithm)_hyperparameter_configurations.txt")
         open(txt_file, "w") do io
             println(io, "\nComparison of Hyperparameter Configurations for $(algorithm) (Sorted by $(string(sort_by))):")
             pretty_table(io, sorted_table, header=["Configuration", "Accuracy", "Precision", "Recall", "F1-Score"])
@@ -419,6 +422,9 @@ function generateAlgorithmTables(
         class_results = results["class_results"]
         parameters_names = keys(results["parameters"])
         parameters = results["parameters"]
+
+        save_folder = joinpath(joinpath(output_dir, string(algorithm), "class_results"))
+        mkpath(save_folder)
 
         # Prepare labels for hyperparameter configurations
         param_labels = [join([string(param, ": ", parameters[param][i]) for param in parameters_names], ", ") for i in 1:num_trained_models]
@@ -467,7 +473,7 @@ function generateAlgorithmTables(
             pretty_table(sorted_table, header=["Configuration", "Accuracy", "Precision", "Recall", "F1-Score"])
             
             # Save the table as text
-            txt_file = joinpath(output_dir, "$(algorithm)_hyperparameter_configurations_class_$(i).txt")
+            txt_file = joinpath(save_folder, "$(algorithm)_hyperparameter_configurations_class_$(i).txt")
             open(txt_file, "w") do io
                 println(io, "\nComparison of Hyperparameter Configurations for $(algorithm) on Class $(i) (Sorted by $(string(sort_by))):")
                 pretty_table(io, sorted_table, header=["Configuration", "Accuracy", "Precision", "Recall", "F1-Score"])
@@ -554,10 +560,8 @@ function plotCombinedMetrics(
     size::Tuple{Int, Int} = (800, 600),
     show::Bool = true
 )
-    # if !isdir(output_dir)
-    #     mkdir(output_dir)
-    # end
-    mkpath(output_dir)
+    save_folder = joinpath(output_dir, "class_results")
+    mkpath(save_folder)
 
     for i in 1:numClasses
         for metric in metrics
@@ -605,7 +609,7 @@ function plotCombinedMetrics(
                 size=size
             )
 
-            savefig(joinpath(output_dir, "combined_$(metric)_plots_class_$(i).png"))
+            savefig(joinpath(save_folder, "combined_$(metric)_plots_class_$(i).png"))
             if show
                 display(combined_plot)
             end
@@ -662,7 +666,8 @@ function generateComparisonTable(
     sort_by::Symbol = :Accuracy,
     rev::Bool = true
 )
-    mkpath(output_dir)
+    save_folder = joinpath(output_dir, "class_results")
+    mkpath(save_folder)
 
     for i in 1:numClasses
         comparison_table = DataFrame(Model = model_names)
@@ -686,7 +691,7 @@ function generateComparisonTable(
         pretty_table(sorted_table, header=["Model", "Accuracy", "Precision", "Recall", "F1-Score"])
 
         # Save the table as text
-        txt_file = joinpath(output_dir, "comparison_max_metrics_class_$(i).txt")
+        txt_file = joinpath(save_folder, "comparison_max_metrics_class_$(i).txt")
         open(txt_file, "w") do io
             println(io, "\nComparison of Maximum Metrics Across Models for Class $(i) (Sorted by $(string(sort_by))):")
             pretty_table(io, sorted_table, header=["Model", "Accuracy", "Precision", "Recall", "F1-Score"])

@@ -3,6 +3,7 @@ Comparison of Hyperparameter Configurations for SVM (Sorted by F1_Score):
 ┌────────────────────────────────────────────┬──────────┬───────────┬──────────┬──────────┐
 │                              Configuration │ Accuracy │ Precision │   Recall │ F1-Score │
 ├────────────────────────────────────────────┼──────────┼───────────┼──────────┼──────────┤
+│ Enrolled: 100, Graduate: 100, Dropout: 100 │  0.85476 │   0.76799 │  0.77991 │ 0.767434 │
 │ Enrolled: 300, Graduate: 100, Dropout: 100 │ 0.848192 │  0.758124 │ 0.769492 │ 0.756455 │
 │ Enrolled: 200, Graduate: 100, Dropout: 200 │ 0.845452 │  0.750953 │ 0.764439 │ 0.754004 │
 │ Enrolled: 300, Graduate: 100, Dropout: 200 │  0.83878 │  0.746348 │ 0.752822 │ 0.747824 │
