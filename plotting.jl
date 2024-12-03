@@ -175,7 +175,7 @@ function aggregateMetrics(
     return model_names, metrics, metric_means, metric_stds, metric_means_class, metric_stds_class, metric_maxes, metric_maxes_class
 end
 
-function plotMetricsPerAlgorithm(
+function plotMetricsAlgorithm(
     loaded_obj::Dict{Symbol, Dict{String, Any}}; 
     output_dir::String = "./plots/",
     metrics::Vector{Symbol} = [:accuracy, :precision, :recall, :f1_score],
@@ -248,7 +248,7 @@ function plotMetricsPerAlgorithm(
     end
 end
 
-function plotMetricsPerClassAlgorithm(
+function plotMetricsAlgorithm(
     loaded_obj::Dict{Symbol, Dict{String, Any}},
     numClasses::Int64; 
     output_dir::String = "./plots/",
@@ -398,7 +398,7 @@ function generateAlgorithmTables(
     end
 end
 
-function generateClassAlgorithmTables(
+function generateAlgorithmTables(
     loaded_obj::Dict{Symbol, Dict{String, Any}},
     numClasses::Int64; 
     sort_by::Symbol = :Accuracy,
