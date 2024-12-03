@@ -5,6 +5,7 @@
 using Plots;
 # plotly();
 using DataFrames, PrettyTables;
+using Statistics;
 
 function plotTraining(train_loss::AbstractVector{<:Real};
     val_loss::AbstractVector{<:Real}=nothing,
@@ -76,7 +77,7 @@ function plotTraining(train_loss::AbstractVector{<:Real};
 end
 
 function aggregateMetrics(
-    loaded_obj::Dict{Symbol, Dict{String, Any}};
+    loaded_obj::AbstractDict{Symbol, Dict{String, Any}};
     metrics::Vector{Symbol} = [:accuracy, :precision, :recall, :f1_score],
     ensemble::Bool = false
 )
@@ -114,7 +115,7 @@ end
 
 # Also the metrics per class
 function aggregateMetrics(
-    loaded_obj::Dict{Symbol, Dict{String, Any}},
+    loaded_obj::AbstractDict{Symbol, Dict{String, Any}},
     numClasses::Int64; 
     metrics::Vector{Symbol} = [:accuracy, :precision, :recall, :f1_score],
     ensemble::Bool = false
@@ -176,14 +177,16 @@ function aggregateMetrics(
 end
 
 function plotMetricsAlgorithm(
-    loaded_obj::Dict{Symbol, Dict{String, Any}}; 
+    loaded_obj::AbstractDict{Symbol, Dict{String, Any}}; 
     output_dir::String = "./plots/",
     metrics::Vector{Symbol} = [:accuracy, :precision, :recall, :f1_score],
     size::Tuple{Int, Int} = (1200, 600)
-)
-    if !isdir(output_dir)
-        mkdir(output_dir)
-    end
+)   
+    # Ensure each internal dir inside the route exists
+    # if !isdir(output_dir)
+    #     mkdir(output_dir)
+    # end
+    mkpath(output_dir)
 
     for (algorithm, results) in loaded_obj
         num_trained_models = results["num_trained_models"]
@@ -248,15 +251,16 @@ function plotMetricsAlgorithm(
 end
 
 function plotMetricsAlgorithm(
-    loaded_obj::Dict{Symbol, Dict{String, Any}},
+    loaded_obj::AbstractDict{Symbol, Dict{String, Any}},
     numClasses::Int64; 
     output_dir::String = "./plots/",
     metrics::Vector{Symbol} = [:accuracy, :precision, :recall, :f1_score],
     size::Tuple{Int, Int} = (1200, 600)
 )
-    if !isdir(output_dir)
-        mkdir(output_dir)
-    end
+    # if !isdir(output_dir)
+    #     mkdir(output_dir)
+    # end
+    mkpath(output_dir)
 
     for (algorithm, results) in loaded_obj
         num_trained_models = results["num_trained_models"]
@@ -324,15 +328,16 @@ end
 
 
 function generateAlgorithmTables(
-    loaded_obj::Dict{Symbol, Dict{String, Any}}; 
+    loaded_obj::AbstractDict{Symbol, Dict{String, Any}}; 
     sort_by::Symbol = :Accuracy,
     rev::Bool = true,
     output_dir::String = "./tables/"
 )
     # Ensure output directory exists
-    if !isdir(output_dir)
-        mkdir(output_dir)
-    end
+    # if !isdir(output_dir)
+    #     mkdir(output_dir)
+    # end
+    mkpath(output_dir)
 
     for (algorithm, results) in loaded_obj
         num_trained_models = results["num_trained_models"]
@@ -397,16 +402,17 @@ function generateAlgorithmTables(
 end
 
 function generateAlgorithmTables(
-    loaded_obj::Dict{Symbol, Dict{String, Any}},
+    loaded_obj::AbstractDict{Symbol, Dict{String, Any}},
     numClasses::Int64; 
     sort_by::Symbol = :Accuracy,
     rev::Bool = true,
     output_dir::String = "./tables/"
 )
     # Ensure output directory exists
-    if !isdir(output_dir)
-        mkdir(output_dir)
-    end
+    # if !isdir(output_dir)
+    #     mkdir(output_dir)
+    # end
+    mkpath(output_dir)
 
     for (algorithm, results) in loaded_obj
         num_trained_models = results["num_trained_models"]
@@ -481,9 +487,10 @@ function plotCombinedMetrics(
     size::Tuple{Int, Int} = (800, 600),
     show::Bool = true
 )
-    if !isdir(output_dir)
-        mkdir(output_dir)
-    end
+    # if !isdir(output_dir)
+    #     mkdir(output_dir)
+    # end
+    mkpath(output_dir)
 
     for metric in metrics
 
@@ -547,9 +554,10 @@ function plotCombinedMetrics(
     size::Tuple{Int, Int} = (800, 600),
     show::Bool = true
 )
-    if !isdir(output_dir)
-        mkdir(output_dir)
-    end
+    # if !isdir(output_dir)
+    #     mkdir(output_dir)
+    # end
+    mkpath(output_dir)
 
     for i in 1:numClasses
         for metric in metrics
@@ -614,6 +622,8 @@ function generateComparisonTable(
     sort_by::Symbol = :Accuracy,
     rev::Bool = true
 )
+    mkpath(output_dir)
+
     comparison_table = DataFrame(Model = model_names)
 
     for metric in metrics
@@ -652,6 +662,7 @@ function generateComparisonTable(
     sort_by::Symbol = :Accuracy,
     rev::Bool = true
 )
+    mkpath(output_dir)
 
     for i in 1:numClasses
         comparison_table = DataFrame(Model = model_names)
