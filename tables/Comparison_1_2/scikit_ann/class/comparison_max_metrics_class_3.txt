@@ -1,0 +1,8 @@
+
+Comparison of Maximum Metrics Across Models for Class 3 (Sorted by f1_score):
+┌────────────────┬──────────┬───────────┬────────┬──────────┐
+│          Model │ Accuracy │ Precision │ Recall │ F1-Score │
+├────────────────┼──────────┼───────────┼────────┼──────────┤
+│ Scikit_ANN_Raw │    0.841 │      0.62 │  0.504 │     0.55 │
+│ Scikit_ANN_PCA │    0.835 │      0.59 │  0.454 │    0.507 │
+└────────────────┴──────────┴───────────┴────────┴──────────┘

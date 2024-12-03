@@ -1,0 +1,8 @@
+
+Comparison of Maximum Metrics Across Models for Class 1 (Sorted by f1_score):
+┌────────────────┬──────────┬───────────┬────────┬──────────┐
+│          Model │ Accuracy │ Precision │ Recall │ F1-Score │
+├────────────────┼──────────┼───────────┼────────┼──────────┤
+│ Scikit_ANN_Raw │    0.868 │     0.819 │  0.935 │    0.847 │
+│ Scikit_ANN_PCA │    0.866 │     0.818 │  0.921 │    0.839 │
+└────────────────┴──────────┴───────────┴────────┴──────────┘
