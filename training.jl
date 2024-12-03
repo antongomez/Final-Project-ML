@@ -1023,6 +1023,9 @@ function trainClassEnsemble(
     normalizationType::Symbol=:zeroMean,
     applyPCA::Bool=false,
     pcaComponents::Union{Float64,Int64}=10,
+    applySmote::Bool=false,
+    smotePercentages::Dict{String,Int64}=Dict{String,Int64}(),
+    smoteNeighbors::Int64=5,
     repetitionsTraining::Int=1
 )
     """
@@ -1099,6 +1102,11 @@ function trainClassEnsemble(
             )
         end
 
+        if applySmote
+            balanced_inputs, balanced_targets = smote(trainingDatasetFold[1], trainingDatasetFold[2], smotePercentages, smoteNeighbors)
+            trainingDatasetFold = (balanced_inputs, balanced_targets)
+        end
+
         results_repetitions = Dict{Symbol,AbstractArray{Float64,1}}()
         for metric in metricsToSave
             results_repetitions[metric] = zeros(Float64, repetitionsTraining)
@@ -1167,7 +1175,11 @@ function trainClassEnsemble(baseEstimator::Symbol,
     verbose::Bool=false,
     normalizationType::Symbol=:zeroMean,
     applyPCA::Bool=false,
-    pcaComponents::Union{Float64,Int64}=10)
+    pcaComponents::Union{Float64,Int64}=10,
+    applySmote::Bool=false,
+    smotePercentages::Dict{String,Int64}=Dict{String,Int64}(),
+    smoteNeighbors::Int64=5,
+    repetitionsTraining::Int64=1)
     """
     This function trains an ensemble model with the same base model using k-fold cross-validation, receiving the inputs and targets as both real and boolean matrixes, respectively.
 
@@ -1189,12 +1201,12 @@ function trainClassEnsemble(baseEstimator::Symbol,
     if ensembleType in [:Voting, :Stacking]
         estimators = [baseEstimator for i in 1:NumEstimators]
         modelsHyperParameters = Vector{Dict}([modelsHyperParameters for i in 1:NumEstimators])
-        return trainClassEnsemble(estimators, modelsHyperParameters, trainingDataset, kFoldIndices, ensembleType, ensembleHyperParameters, metricsToSave, verbose, normalizationType, applyPCA, pcaComponents)
+        return trainClassEnsemble(estimators, modelsHyperParameters, trainingDataset, kFoldIndices, ensembleType, ensembleHyperParameters, metricsToSave, verbose, normalizationType, applyPCA, pcaComponents, applySmote, smotePercentages, smoteNeighbors, repetitionsTraining)
     else
         estimators = [baseEstimator]
         modelsHyperParameters = Vector{Dict}([modelsHyperParameters])
         ensembleHyperParameters[:n_estimators] = NumEstimators
-        return trainClassEnsemble(estimators, modelsHyperParameters, trainingDataset, kFoldIndices, ensembleType, ensembleHyperParameters, metricsToSave, verbose, normalizationType, applyPCA, pcaComponents)
+        return trainClassEnsemble(estimators, modelsHyperParameters, trainingDataset, kFoldIndices, ensembleType, ensembleHyperParameters, metricsToSave, verbose, normalizationType, applyPCA, pcaComponents, applySmote, smotePercentages, smoteNeighbors, repetitionsTraining)
     end
 
 end
