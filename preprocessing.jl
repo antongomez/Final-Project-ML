@@ -332,6 +332,40 @@ function holdOut(N::Int, P::Real)
 
 end
 
+function holdOut(inputs::AbstractArray{<:Real,2}, targets::AbstractArray{<:Any,1}, P::Real)
+    """
+    This function returns random indices for training and test sets according a percentage of the total number of patterns, preserving the classes frequencies.
+
+    Parameters:
+        - inputs: A real matrix with the input data.
+        - targets: A vector with the target values.
+        - P: The percentage of patterns to be used in the test set.
+
+    Returns:
+        - train_indices: The indices of the training set.
+        - test_indices: The indices of the test set.
+    """
+    N = size(inputs, 1)
+
+    # Generate a random permutation of the indices
+    indices = randperm(N)
+
+    # Determine the number of test samples
+    test_size = Int(round(P * N))
+
+    # Fill test preserving the classes frequencies
+    test_indices = []
+    for class in unique(targets)
+        class_indices = findall(targets .== class)
+        class_indices = class_indices[shuffle(1:length(class_indices))]
+        test_indices = vcat(test_indices, class_indices[1:round(Int, length(class_indices) * P)])
+    end
+
+    # Assign the test and training indices
+    return (indices[test_size+1:end], indices[1:test_size])
+
+end
+
 function holdOut(N::Int, Pval::Real, Ptest::Real)
     """
     This function returns random indices for training, validation and test sets according a percentage of the total number of patterns.
