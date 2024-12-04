@@ -472,11 +472,9 @@ function plotCombinedMetrics(
     metric_stds::Dict{Symbol, Vector{Any}};
     output_dir::String = "./plots/",
     size::Tuple{Int, Int} = (800, 600),
-    show::Bool = true
+    show::Bool = true,
+    rotate_xticks::Bool = false
 )
-    # if !isdir(output_dir)
-    #     mkdir(output_dir)
-    # end
     mkpath(output_dir)
 
     for metric in metrics
@@ -489,17 +487,19 @@ function plotCombinedMetrics(
             min(upper_limit + 0.15, 1)
         )
 
+        xtick_rotation = rotate_xticks ? 45 : 0
+
         # Bar plot
         bar_plot = bar(
             model_names,
             metric_means[metric],
             yerror=metric_stds[metric],
-            xlabel="Model",
             ylabel=string(metric, " (mean ± std)"),
             title="Comparison of Models based on $(metric)",
             legend=false,
             grid=true,
-            ylim=ylim
+            ylim=ylim,
+            xrotation=xtick_rotation
         )
 
         # Line plot
@@ -513,7 +513,8 @@ function plotCombinedMetrics(
             label=string("Mean ", metric),
             lw=2,
             grid=true,
-            ylim=ylim
+            ylim=ylim,
+            xrotation=xtick_rotation
         )
 
         # Combined plot
@@ -539,7 +540,8 @@ function plotCombinedMetrics(
     metric_stds_class::Vector{Dict{Symbol, Vector{Any}}};
     output_dir::String = "./plots/",
     size::Tuple{Int, Int} = (800, 600),
-    show::Bool = true
+    show::Bool = true,
+    rotate_xticks::Bool = false
 )
     save_folder = joinpath(output_dir, "class_results")
     mkpath(save_folder)
@@ -554,18 +556,19 @@ function plotCombinedMetrics(
                 max(lower_limit - 0.15, 0),
                 min(upper_limit + 0.15, 1)
             )
+            xtick_rotation = rotate_xticks ? 45 : 0
 
             # Bar plot
             bar_plot = bar(
                 model_names,
                 metric_means_class[i][metric],
                 yerror=metric_stds_class[i][metric],
-                xlabel="Model",
                 ylabel=string(metric, " (mean ± std)"),
                 title="Comparison of Models based on $(metric) for Class $(i)",
                 legend=false,
                 grid=true,
-                ylim = ylim
+                ylim = ylim,
+                xrotation=xtick_rotation
             )
 
             # Line plot
@@ -579,7 +582,8 @@ function plotCombinedMetrics(
                 label=string("Mean ", metric),
                 lw=2,
                 grid=true,
-                ylim=ylim
+                ylim=ylim,
+                xrotation=xtick_rotation
             )
 
             # Combined plot
