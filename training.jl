@@ -1213,3 +1213,65 @@ function trainClassEnsemble(baseEstimator::Symbol,
     end
 
 end
+
+function trainEnsemble(estimators::AbstractArray{Symbol,1},
+    modelsHyperParameters::Vector{Dict},
+    trainingDataset::Tuple{AbstractArray{<:Real,2},AbstractArray{<:Any,1}},
+    testDataset::Tuple{AbstractArray{<:Real,2},AbstractArray{<:Any,1}};
+    ensembleType::Symbol=:Voting,
+    ensembleHyperParameters::Dict=Dict(),
+    normalizationType::Symbol=:zeroMean,
+    applyPCA::Bool=false,
+    pcaComponents::Union{Float64,Int64}=10,
+    applySmote::Bool=false,
+    smotePercentages::Dict{String,Int64}=Dict{String,Int64}(),
+    smoteNeighbors::Int64=5
+)
+    # Check if the ensemble type is allowed
+    ensembles_allowed = [:Voting, :Stacking, :Bagging, :AdaBoost, :GradientBoosting]
+    if !(ensembleType in ensembles_allowed)
+        error("Ensemble type not allowed. Please use one of the following: $ensembles_allowed")
+    end
+
+    # Normalize the datasets
+    normalizationParameters = calculateNormalizationParameters(trainingDataset[1], normalizationType)
+    performNormalization!(trainingDataset[1], normalizationParameters, normalizationType)
+    performNormalization!(testDataset[1], normalizationParameters, normalizationType)
+
+    # Apply PCA if specified
+    if applyPCA
+        pca = PCA(n_components=pcaComponents)
+        fit!(pca, trainingDataset[1])
+        trainingDatasetFold = (
+            pca.transform(trainingDataset[1]),
+            trainingDatasetFold[2]
+        )
+        testDatasetFold = (
+            pca.transform(testDataset[1]),
+            testDatasetFold[2]
+        )
+    end
+
+    if applySmote
+        balanced_inputs, balanced_targets = smote(trainingDataset[1], trainingDataset[2], smotePercentages, smoteNeighbors)
+        trainingDatasetFold = (balanced_inputs, balanced_targets)
+    end
+
+
+    # Create the ensemble model
+    ensemble = get_ensemble_model(ensembleType, ensembleHyperParameters, estimators, modelsHyperParameters)
+
+    # Train the ensemble
+    fit!(ensemble, trainingDataset[1], trainingDataset[2])
+
+    # Predict on the test set
+    predictions = ensemble.predict(testDataset[1])
+            
+    # Convert the predictions to a vector if predictions is PyObject array
+    predictions = convert(Vector{String}, predictions)
+
+    metrics, cr = confusionMatrix(predictions, testDataset[2])
+
+    return metrics, cr
+
+end
