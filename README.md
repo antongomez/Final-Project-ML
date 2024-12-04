@@ -1,7 +1,6 @@
-# Final-Project-MaLea
-## Final Project for Machine Learning I
+# Final Project for Machine Learning I
 
-### Required Packages
+## Required Packages
 
 ```julia
 using Random 
@@ -16,7 +15,7 @@ using Serialization
 using DataStructures
 ```
 
-### Installation
+## Installation
 
 To install all the required packages, you can use the Julia package manager. Open your Julia REPL and run the following commands:
 
