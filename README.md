@@ -12,4 +12,6 @@ using DataFrames
 using PrettyTables
 using Flux
 using ScikitLearn
+using Serialization
+using DataStructures
 ```
