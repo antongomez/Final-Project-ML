@@ -504,7 +504,7 @@ function confusionMatrix(outputs::AbstractArray{<:Real,2}, targets::AbstractArra
 end
 
 
-function confusionMatrix(outputs::AbstractArray{<:Any,1}, targets::AbstractArray{<:Any,1}; weighted::Bool=true)
+function confusionMatrix(outputs::AbstractArray{<:Any,1}, targets::AbstractArray{<:Any,1}; weighted::Bool=true, target_labels::Vector{<:Any} = ["Dropout", "Graduate", "Enrolled"])
     """
     This function calculates the confusion matrix and several metrics of a multi-class classifier given its outputs and the target values without using oneHotEncoding.
     
@@ -528,14 +528,17 @@ function confusionMatrix(outputs::AbstractArray{<:Any,1}, targets::AbstractArray
     # Defensive line to ensure all output classes are in the target classes
     @assert (all([in(output, unique(targets)) for output in outputs])) "All output classes must be included in the target classes"
     
-    # Calculate the unique classes from both outputs and targets
-    class_vector = unique(vcat(outputs, targets))
+    # Check if label_targets is null
+    if target_labels isa Nothing
+        target_labels = vcat(unique(targets), unique(outputs))
+    end
+    
     
     # Encode both outputs and targets using oneHotEncoding
-    bool_outputs = oneHotEncoding(outputs, class_vector)
-    bool_targets = oneHotEncoding(targets, class_vector)
+    bool_outputs = oneHotEncoding(outputs, target_labels)
+    bool_targets = oneHotEncoding(targets, target_labels)
     
     # Call the previously defined confusionMatrix function for boolean matrices
     return confusionMatrix(bool_outputs, bool_targets; weighted=weighted)
 
-    end
+end
