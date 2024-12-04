@@ -1,9 +1,9 @@
 
-Comparison of Metrics Across Models (Sorted by f1_score):
+Comparison of Metrics Across Models for Class 1 (Sorted by f1_score):
 ┌─────────────┬──────────┬───────────┬────────┬──────────┐
 │       Model │ Accuracy │ Precision │ Recall │ F1-Score │
 ├─────────────┼──────────┼───────────┼────────┼──────────┤
-│    Stacking │    0.852 │     0.766 │  0.776 │    0.766 │
-│ Voting_Soft │    0.851 │     0.762 │  0.775 │     0.76 │
-│ Voting_Hard │    0.848 │     0.759 │  0.772 │    0.756 │
+│    Stacking │    0.837 │      0.76 │  0.884 │    0.817 │
+│ Voting_Soft │    0.834 │     0.773 │  0.859 │     0.81 │
+│ Voting_Hard │    0.836 │     0.789 │  0.835 │    0.806 │
 └─────────────┴──────────┴───────────┴────────┴──────────┘

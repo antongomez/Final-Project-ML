@@ -1,5 +1,5 @@
 
-Comparison of Maximum Metrics Across Models for Class 3 (Sorted by f1_score):
+Comparison of Metrics Across Models for Class 3 (Sorted by f1_score):
 ┌────────────┬──────────┬───────────┬────────┬──────────┐
 │      Model │ Accuracy │ Precision │ Recall │ F1-Score │
 ├────────────┼──────────┼───────────┼────────┼──────────┤
