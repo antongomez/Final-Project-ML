@@ -1270,8 +1270,8 @@ function trainEnsemble(estimators::AbstractArray{Symbol,1},
     # Convert the predictions to a vector if predictions is PyObject array
     predictions = convert(Vector{String}, predictions)
 
-    metrics, cr = confusionMatrix(predictions, testDataset[2])
+    metrics, _ = confusionMatrix(predictions, testDataset[2])
 
-    return metrics, cr
+    return metrics
 
 end

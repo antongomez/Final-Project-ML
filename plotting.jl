@@ -684,4 +684,42 @@ function generateComparisonTable(
     end
 end
 
+function showConfusionMatrix(confMatrix::Matrix{Int64};
+    labels::Vector{String} = ["Dropout", "Graduate", "Enrolled"],
+    output_dir::String = "./plots/",
+    filename::String = "confusion_matrix.png")
+    """
+    This function displays the confusion matrix in a user-friendly format.
+    
+    Parameters:
+        - confMatrix: The confusion matrix to display.
+        - labels: The labels for the classes.
+    """
+    p = heatmap(
+        conf_matrix, 
+        title = "", 
+        xlabel = "Actual", 
+        ylabel = "Predicted",
+        xticks = (1:size(conf_matrix, 2), labels),
+        yticks = (1:size(conf_matrix, 1), labels),
+        color = :blues
+    )
+
+    max_value = maximum(conf_matrix)
+    threshold = max_value / 2
+
+    for i in 1:size(conf_matrix, 1)
+        for j in 1:size(conf_matrix, 2)
+            color = conf_matrix[i, j] > threshold ? :white : :black
+            annotate!(j, i, text(string(conf_matrix[i, j]), color, 8))
+        end
+    end
+
+    display(p)
+
+    mkpath(output_dir)
+    savefig(joinpath(output_dir, filename))
+
+end
+
 
