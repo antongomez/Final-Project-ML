@@ -1,12 +1,12 @@
 
-Comparison of Maximum Metrics Across Models (Sorted by f1_score):
+Comparison of Metrics Across Models (Sorted by f1_score):
 ┌─────────────────┬──────────┬───────────┬────────┬──────────┐
 │           Model │ Accuracy │ Precision │ Recall │ F1-Score │
 ├─────────────────┼──────────┼───────────┼────────┼──────────┤
-│    Stacking_Raw │    0.853 │     0.766 │  0.777 │    0.767 │
-│ Voting_Soft_Raw │    0.852 │     0.763 │  0.777 │    0.763 │
-│    Stacking_PCA │    0.848 │     0.756 │  0.769 │    0.758 │
-│ Voting_Hard_Raw │    0.853 │      0.76 │  0.777 │    0.757 │
-│ Voting_Hard_PCA │    0.841 │     0.747 │  0.762 │    0.747 │
-│ Voting_Soft_PCA │    0.838 │     0.743 │  0.758 │     0.74 │
+│    Stacking_Raw │    0.859 │     0.777 │  0.787 │    0.776 │
+│ Voting_Soft_Raw │    0.859 │     0.779 │  0.788 │    0.774 │
+│ Voting_Hard_Raw │    0.855 │      0.77 │  0.781 │    0.764 │
+│ Voting_Soft_PCA │    0.835 │     0.746 │  0.749 │    0.742 │
+│    Stacking_PCA │    0.834 │     0.736 │   0.75 │    0.737 │
+│ Voting_Hard_PCA │    0.829 │      0.73 │  0.741 │    0.731 │
 └─────────────────┴──────────┴───────────┴────────┴──────────┘
