@@ -702,7 +702,8 @@ function showConfusionMatrix(confMatrix::Matrix{Int64};
         ylabel = "Predicted",
         xticks = (1:size(conf_matrix, 2), labels),
         yticks = (1:size(conf_matrix, 1), labels),
-        color = :blues
+        color = :blues,
+        tickfont = font(12),
     )
 
     max_value = maximum(conf_matrix)
@@ -711,7 +712,7 @@ function showConfusionMatrix(confMatrix::Matrix{Int64};
     for i in 1:size(conf_matrix, 1)
         for j in 1:size(conf_matrix, 2)
             color = conf_matrix[i, j] > threshold ? :white : :black
-            annotate!(j, i, text(string(conf_matrix[i, j]), color, 8))
+            annotate!(j, i, text(string(conf_matrix[i, j]), color, 14))
         end
     end
 

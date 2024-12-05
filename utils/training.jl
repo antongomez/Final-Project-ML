@@ -1242,19 +1242,19 @@ function trainEnsemble(estimators::AbstractArray{Symbol,1},
     if applyPCA
         pca = PCA(n_components=pcaComponents)
         fit!(pca, trainingDataset[1])
-        trainingDatasetFold = (
+        trainingDataset = (
             pca.transform(trainingDataset[1]),
-            trainingDatasetFold[2]
+            trainingDataset[2]
         )
-        testDatasetFold = (
+        testDataset = (
             pca.transform(testDataset[1]),
-            testDatasetFold[2]
+            testDataset[2]
         )
     end
 
     if applySmote
         balanced_inputs, balanced_targets = smote(trainingDataset[1], trainingDataset[2], smotePercentages, smoteNeighbors)
-        trainingDatasetFold = (balanced_inputs, balanced_targets)
+        trainingDataset = (balanced_inputs, balanced_targets)
     end
 
 
